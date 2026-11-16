@@ -397,6 +397,7 @@ const BUILTIN = [
   ["Windmill (right)","Eyes on the bell, push the hip out"],
   ["Turkish get-up (left)","Slow and steady, eyes on the bell"],
   ["Turkish get-up (right)","Slow and steady, eyes on the bell"],
+  ["Two-arm row","Hinge over, flat back, pull both elbows back to the hips"],
   ["Row","Flat back, pull the elbow to the hip"],
   ["Clean","Zip it up close, soft landing in the rack"],
   ["Bicep curl","Elbows pinned, no swinging"],
@@ -415,15 +416,15 @@ const BELL_COL = {8:"#ff8fb8",12:"#3b7dd8",16:"#f2c200",20:"#8a4fc7",24:"#2e9e48
 
 const PRESETS = [
   {id:"p-flow", name:"Sets: Full-body flow", type:"sets", rounds:0, rest:90, interval:60, items:[
-    {ex:"Row",reps:5,kg:16},{ex:"Clean",reps:5,kg:16},{ex:"Two-hand swing",reps:5,kg:16},{ex:"Goblet squat",reps:5,kg:16},
-    {ex:"Bicep curl",reps:5,kg:12},{ex:"Tricep extension",reps:5,kg:12},{ex:"Pullover",reps:5,kg:12},{ex:"Halo (alternating)",reps:10,kg:12},{ex:"Push-up",reps:10,kg:0}]},
+    {ex:"Two-arm row",reps:5,kg:16},{ex:"Clean",reps:5,kg:16},{ex:"Two-hand swing",reps:5,kg:16},{ex:"Goblet squat",reps:5,kg:16},
+    {ex:"Bicep curl",reps:5,kg:16},{ex:"Tricep extension",reps:5,kg:16},{ex:"Pullover",reps:5,kg:16},{ex:"Halo (alternating)",reps:10,kg:16},{ex:"Push-up",reps:10,kg:0}]},
   {id:"p-amrap15", name:"AMRAP 15: swing, squat, push-up", type:"amrap", cap:15, rounds:1, interval:60, items:[
     {ex:"Two-hand swing",reps:10,kg:16},{ex:"Goblet squat",reps:8,kg:16},{ex:"Push-up",reps:6,kg:0}]},
   {id:"p-swing100", name:"EMOM: Swing 100 (10 min)", rounds:10, interval:60, items:[{ex:"Two-hand swing",reps:10,kg:16}]},
   {id:"p-full20", name:"EMOM: Full body 20", rounds:4, interval:60, items:[
-    {ex:"Two-hand swing",reps:15,kg:16},{ex:"Goblet squat",reps:10,kg:16},{ex:"Press (left)",reps:5,kg:12},{ex:"Press (right)",reps:5,kg:12},{ex:REST,reps:0,kg:0}]},
+    {ex:"Two-hand swing",reps:15,kg:16},{ex:"Goblet squat",reps:10,kg:16},{ex:"Press (left)",reps:5,kg:16},{ex:"Press (right)",reps:5,kg:16},{ex:REST,reps:0,kg:0}]},
   {id:"p-cp", name:"EMOM: Clean & press 16", rounds:8, interval:60, items:[{ex:"Clean and press (left)",reps:5,kg:16},{ex:"Clean and press (right)",reps:5,kg:16}]},
-  {id:"p-legs", name:"EMOM: Legs & lungs 15", rounds:5, interval:60, items:[{ex:"Goblet squat",reps:12,kg:20},{ex:"Goblet reverse lunge",reps:10,kg:12},{ex:"Burpee",reps:8,kg:0}]},
+  {id:"p-legs", name:"EMOM: Legs & lungs 15", rounds:5, interval:60, items:[{ex:"Goblet squat",reps:12,kg:16},{ex:"Goblet reverse lunge",reps:10,kg:16},{ex:"Burpee",reps:8,kg:0}]},
   {id:"p-snatch", name:"EMOM: Snatch 12", rounds:6, interval:60, items:[{ex:"Snatch (left)",reps:8,kg:16},{ex:"Snatch (right)",reps:8,kg:16}]},
 ];
 
@@ -481,7 +482,11 @@ const TYPE_HELP = {
 };
 function loadPlan(){
   const s = settings();
-  plan = s.plan ? clonePlan(s.plan) : clonePlan(PRESETS[1]);
+  plan = s.plan ? clonePlan(s.plan) : clonePlan(PRESETS[0]);
+  if (!s.mig16 && s.plan) { // one bell: 16 kg for everything
+    plan.items.forEach(it => { if (it.kg) it.kg = 16; if (plan.from === "p-flow" && it.ex === "Row") it.ex = "Two-arm row"; });
+    saveSettings({plan, mig16:true});
+  }
 }
 let planSaveT = null;
 function persistPlan(){ clearTimeout(planSaveT); planSaveT = setTimeout(() => saveSettings({plan}), 800); }
@@ -560,7 +565,7 @@ $("#plan").addEventListener("change", e => {
 });
 $("#plan").addEventListener("input", e => { if (e.target.dataset.f === "reps") { const it = plan.items[+e.target.closest(".prow").dataset.i]; it.reps = Math.max(0, +e.target.value || 0); renderPlanSum(); persistPlan(); }});
 $("#plan").addEventListener("click", e => { const b = e.target.closest("[data-del]"); if (!b) return; plan.items.splice(+b.dataset.del,1); renderPlan(); persistPlan(); });
-$("#add-row").onclick = () => { const last = [...plan.items].reverse().find(i => i.ex !== REST); plan.items.push({ex:"Two-hand swing", reps:10, kg:last ? last.kg : 16}); renderPlan(); persistPlan(); };
+$("#add-row").onclick = () => { const last = [...plan.items].reverse().find(i => i.ex !== REST); plan.items.push({ex:"Two-hand swing", reps:10, kg:16}); renderPlan(); persistPlan(); };
 $("#add-rest").onclick = () => { plan.items.push({ex:REST, reps:0, kg:0}); renderPlan(); persistPlan(); };
 $("#rounds").oninput = e => { plan.rounds = Math.min(60, Math.max(1, +e.target.value || 1)); renderPlanSum(); persistPlan(); };
 $("#interval").onchange = e => { plan.interval = +e.target.value; renderPlanSum(); persistPlan(); };
