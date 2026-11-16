@@ -218,14 +218,15 @@ view.innerHTML = `
     <p class="label" style="margin:6px 0 0">Or pick from the list</p>
     <input id="fd-q" type="search" placeholder="Search foods, e.g. pie, latte, banana" autocomplete="off">
     <div id="fd-results" class="fd-list"></div>
-    <button class="btn sm ghost" id="fd-custombtn" style="align-self:flex-start">+ Type in your own food</button>
+    <button class="btn sm ghost" id="fd-custombtn" style="align-self:flex-start">+ I know the calories</button>
     <form id="fd-custom" class="stack" hidden>
-      <div class="field"><label class="label" for="fd-cname">What was it?</label><input id="fd-cname" required placeholder="e.g. Mum's lasagne"></div>
-      <div class="grid2">
-        <div class="field"><label class="label" for="fd-ckcal">Calories (guess is fine)</label><input id="fd-ckcal" type="number" inputmode="numeric" min="0" max="5000" required placeholder="kcal"></div>
-        <div class="field"><label class="label" for="fd-cport">Portion (optional)</label><input id="fd-cport" placeholder="e.g. 1 plate"></div>
+      <div class="field"><label class="label" for="fd-cname">Food</label><input id="fd-cname" required placeholder="e.g. Mum's lasagne"></div>
+      <div class="grid2" style="align-items:end">
+        <div class="field"><label class="label" for="fd-ckcal">Calories</label><input id="fd-ckcal" type="number" inputmode="numeric" min="0" max="5000" placeholder="kcal"></div>
+        <div class="field"><label class="label" for="fd-cport">Portion</label><input id="fd-cport" placeholder="e.g. 1 plate"></div>
       </div>
-      <label class="row" style="gap:10px"><input type="checkbox" id="fd-csave" checked style="width:22px;height:22px;min-height:0"> Save it to my foods for next time</label>
+      <p class="muted" style="margin:0;font-size:14px">Leave calories blank and Claude will estimate them.</p>
+      <label class="row" style="gap:10px;flex-wrap:nowrap"><input type="checkbox" id="fd-csave" checked style="width:22px;height:22px;min-height:0;flex:none"> Save it to my foods for next time</label>
       <div class="row"><button class="btn primary" type="submit">Add</button><button class="btn ghost" type="button" id="fd-ccancel">Cancel</button></div>
     </form>
   </div>
@@ -326,6 +327,12 @@ $("#fd-custom").onsubmit = e => {
   e.preventDefault();
   const name = $("#fd-cname").value.trim(), kcal = Math.round(+$("#fd-ckcal").value || 0), portion = $("#fd-cport").value.trim();
   if (!name) return;
+  if (!$("#fd-ckcal").value.trim()) {
+    $("#fd-desc").value = portion ? `${name}, ${portion}` : name;
+    $("#fd-custom").reset(); $("#fd-csave").checked = true; $("#fd-custom").hidden = true;
+    $("#fd-ask").scrollIntoView({behavior:"smooth", block:"start"});
+    askClaude(photoImg, $("#fd-desc").value); return;
+  }
   if ($("#fd-csave").checked) { const s = fset(); saveF({mine: [{name, portion, kcal}, ...s.mine.filter(m => m.name.toLowerCase() !== name.toLowerCase())].slice(0, 100)}); }
   addFood({name, portion, kcal, src:"custom"});
   $("#fd-custom").reset(); $("#fd-csave").checked = true; $("#fd-custom").hidden = true; query = ""; $("#fd-q").value = ""; render();
