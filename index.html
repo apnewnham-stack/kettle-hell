@@ -95,6 +95,8 @@ textarea{min-height:70px;resize:vertical}
 .ring .num span{font:600 16px/1 var(--body);color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
 .t-now{text-align:center}
 .t-now .what{font:800 clamp(30px,9vw,48px)/1 var(--display);text-transform:uppercase;letter-spacing:.02em;text-wrap:balance}
+.t-cue{margin:8px auto 0;max-width:420px;font-size:15px;color:var(--muted);line-height:1.35}
+.t-cue a{color:var(--accent);font-weight:600;white-space:nowrap}
 .t-now .meta{font-size:18px;color:var(--muted);margin-top:6px}
 .t-next{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;width:100%;max-width:480px;display:flex;justify-content:space-between;gap:12px;align-items:center}
 .t-next .what{font:700 20px/1.1 var(--display);text-transform:uppercase}
@@ -296,7 +298,8 @@ textarea{min-height:70px;resize:vertical}
       <h2>Exercise library</h2>
       <form id="lib-form" class="stack">
         <div class="field"><label class="label" for="lib-name">Add your own exercise</label><input id="lib-name" required placeholder="e.g. Bottoms-up press"></div>
-        <div class="field"><label class="label" for="lib-cue">Form tip (optional, read out loud)</label><input id="lib-cue" placeholder="e.g. Grip hard, squeeze glutes"></div>
+        <div class="field"><label class="label" for="lib-cue">How to do it (optional, can be read out loud)</label><input id="lib-cue" placeholder="e.g. Grip hard, squeeze glutes"></div>
+        <div class="field"><label class="label" for="lib-video">Video link (optional)</label><input id="lib-video" type="url" inputmode="url" placeholder="Paste a YouTube link"></div>
         <button class="btn primary" type="submit">Add exercise</button>
       </form>
       <div id="lib"></div>
@@ -331,7 +334,7 @@ textarea{min-height:70px;resize:vertical}
       <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="none" stroke="var(--sunk)" stroke-width="7"/><circle id="t-arc" cx="50" cy="50" r="45" fill="none" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" stroke-dasharray="282.74" stroke-dashoffset="282.74"/></svg>
       <div class="num"><b id="t-sec">10</b><span id="t-sub">seconds</span></div>
     </div>
-    <div class="t-now"><div class="what" id="t-what"></div><div class="meta" id="t-meta"></div></div>
+    <div class="t-now"><div class="what" id="t-what"></div><div class="meta" id="t-meta"></div><p class="t-cue" id="t-cue"></p></div>
     <ul class="t-list" id="t-list" hidden></ul>
     <div class="t-next"><div><div class="label">Next</div><div class="what" id="t-next"></div></div><div class="muted" id="t-nextmeta"></div></div>
   </div>
@@ -369,6 +372,7 @@ const fmtDay = k => parseKey(k).toLocaleDateString(undefined, {weekday:"long", d
 const mmss = s => pad(Math.floor(s / 60)) + ":" + pad(Math.floor(s % 60));
 
 /* ---------- Exercise library ---------- */
+const VIDEO_TWIST = "https://youtu.be/BlKoQLB955k";
 const BUILTIN = [
   ["Two-hand swing","Hinge, snap the hips, bell floats to chest height"],
   ["One-arm swing (left)","Hinge, snap the hips, keep the shoulder packed"],
@@ -397,6 +401,11 @@ const BUILTIN = [
   ["Windmill (right)","Eyes on the bell, push the hip out"],
   ["Turkish get-up (left)","Slow and steady, eyes on the bell"],
   ["Turkish get-up (right)","Slow and steady, eyes on the bell"],
+  ["Rotational thruster","Goblet squat, then as you stand rotate 90 degrees and press the bell overhead with both hands. Alternate sides.",VIDEO_TWIST],
+  ["Deadlift to halo","Deadlift the bell, stand tall, then circle it around your head. Alternate direction each rep.",VIDEO_TWIST],
+  ["Lunge to press-out","Lunge with the bell at your chest, push it straight out until your arms are long, bring it back. Alternate legs.",VIDEO_TWIST],
+  ["Pullover rotation","Pull the bell over the back of your head, rotate 90 degrees, back to centre. Alternate sides.",VIDEO_TWIST],
+  ["Cross-body lunge","Lunge and swing the bell across to the outside of your front knee. Alternate legs.",VIDEO_TWIST],
   ["Two-arm row","Hinge over, flat back, pull both elbows back to the hips"],
   ["Row","Flat back, pull the elbow to the hip"],
   ["Clean","Zip it up close, soft landing in the rack"],
@@ -415,6 +424,9 @@ const BELLS = [4,6,8,10,12,14,16,18,20,22,24,26,28,32,36,40,44,48];
 const BELL_COL = {8:"#ff8fb8",12:"#3b7dd8",16:"#f2c200",20:"#8a4fc7",24:"#2e9e48",28:"#ef7d22",32:"#d5302a",36:"#7b7f86",40:"#f4f4f4",44:"#c0c4c8",48:"#d4af37"};
 
 const PRESETS = [
+  {id:"p-twist", name:"EMOM: Twist and Shout (10 min)", type:"emom", rounds:2, interval:60, items:[
+    {ex:"Rotational thruster",reps:5,side:true,kg:16},{ex:"Deadlift to halo",reps:5,side:true,kg:16},{ex:"Lunge to press-out",reps:5,side:true,kg:16},
+    {ex:"Pullover rotation",reps:5,side:true,kg:16},{ex:"Cross-body lunge",reps:5,side:true,kg:16}]},
   {id:"p-flow", name:"Sets: Full-body flow", type:"sets", rounds:0, rest:90, interval:60, items:[
     {ex:"Two-arm row",reps:5,kg:16},{ex:"Clean",reps:5,kg:16},{ex:"Two-hand swing",reps:5,kg:16},{ex:"Goblet squat",reps:5,kg:16},
     {ex:"Bicep curl",reps:5,kg:16},{ex:"Tricep extension",reps:5,kg:16},{ex:"Pullover",reps:5,kg:16},{ex:"Halo (alternating)",reps:10,kg:16},{ex:"Push-up",reps:10,kg:0}]},
@@ -463,8 +475,11 @@ const saveSettings = patch => Store.put("settings", {...settings(), ...patch, ki
 
 const library = () => {
   const s = settings();
-  return [...BUILTIN.map(([name,cue]) => ({name,cue,builtin:true})), ...s.custom.map(c => ({...c, builtin:false}))];
+  const vids = s.videos || {};
+  return [...BUILTIN.map(([name,cue,video]) => ({name,cue,builtin:true,video:vids[name] ?? video ?? ""})), ...s.custom.map(c => ({...c, builtin:false, video:vids[c.name] ?? c.video ?? ""}))];
 };
+const repsOf = it => (+it.reps || 0) * (it.side ? 2 : 1);
+const videoFor = name => (library().find(l => l.name === name) || {}).video || "";
 const cueFor = name => (library().find(l => l.name === name) || {}).cue || "";
 
 /* ---------- Units ---------- */
@@ -511,7 +526,7 @@ function renderPlan(){
     plan.items.map((it,i) => `<div class="prow" data-i="${i}">
       <span class="n">${i+1}</span>
       <select data-f="ex" aria-label="Exercise ${i+1}">${opts(it.ex)}</select>
-      <span class="repwrap"><input data-f="reps" type="number" inputmode="numeric" min="0" max="200" value="${it.ex===REST?"":it.reps}" ${it.ex===REST?"disabled":""} aria-label="Reps"><span>reps</span></span>
+      <span class="repwrap"><input data-f="reps" type="number" inputmode="numeric" min="0" max="200" value="${it.ex===REST?"":it.reps}" ${it.ex===REST?"disabled":""} aria-label="Reps"><select data-f="side" aria-label="Count" style="width:auto;padding:6px 4px;min-height:40px;font-size:14px" ${it.ex===REST?"disabled":""}><option value="0"${it.side?"":" selected"}>reps</option><option value="1"${it.side?" selected":""}>each side</option></select></span>
       <select data-f="kg" aria-label="Bell weight" ${it.ex===REST?"disabled":""}>${bellOpts(it.kg)}</select>
       <button class="icon-btn" data-del="${i}" aria-label="Remove">×</button>
     </div>`).join("");
@@ -528,8 +543,8 @@ function renderPlan(){
 function renderPlanSum(){
   if (plan.type !== "emom") return renderFlowSum();
   const n = plan.items.length * plan.rounds, secs = n * plan.interval;
-  const reps = plan.items.reduce((a,it) => a + (it.ex===REST?0:(+it.reps||0)), 0) * plan.rounds;
-  const tonnage = plan.items.reduce((a,it) => a + (it.ex===REST?0:(+it.reps||0)*(+it.kg||0)), 0) * plan.rounds;
+  const reps = plan.items.reduce((a,it) => a + (it.ex===REST?0:repsOf(it)), 0) * plan.rounds;
+  const tonnage = plan.items.reduce((a,it) => a + (it.ex===REST?0:repsOf(it)*(+it.kg||0)), 0) * plan.rounds;
   $("#plan-sum").innerHTML = `
     <div class="stat"><span class="label">Time</span><b>${mmss(secs)}</b></div>
     <div class="stat"><span class="label">Intervals</span><b>${n}</b></div>
@@ -539,8 +554,8 @@ function renderPlanSum(){
 }
 function renderFlowSum(){
   const work = plan.items.filter(i => i.ex !== REST);
-  const reps = work.reduce((a,it) => a + (+it.reps||0), 0);
-  const ton = work.reduce((a,it) => a + (+it.reps||0)*(+it.kg||0), 0);
+  const reps = work.reduce((a,it) => a + repsOf(it), 0);
+  const ton = work.reduce((a,it) => a + repsOf(it)*(+it.kg||0), 0);
   const u = settings().units;
   const first = plan.type === "amrap"
     ? `<div class="stat"><span class="label">Time</span><b>${plan.cap}:00</b></div>`
@@ -561,6 +576,7 @@ $("#plan").addEventListener("change", e => {
   if (f === "ex") { it.ex = e.target.value; if (it.ex === REST) { it.reps = 0; it.kg = 0; } else if (!it.reps) it.reps = 10; renderPlan(); }
   else if (f === "reps") it.reps = Math.max(0, +e.target.value || 0);
   else if (f === "kg") it.kg = +e.target.value;
+  else if (f === "side") it.side = e.target.value === "1";
   renderPlanSum(); persistPlan();
 });
 $("#plan").addEventListener("input", e => { if (e.target.dataset.f === "reps") { const it = plan.items[+e.target.closest(".prow").dataset.i]; it.reps = Math.max(0, +e.target.value || 0); renderPlanSum(); persistPlan(); }});
@@ -642,10 +658,19 @@ let run = null, tick = null, wakeLock = null;
 const spokenItem = (it) => {
   if (it.ex === REST) return "Rest";
   const w = it.kg ? `, ${settings().units==="lb" ? Math.round(it.kg*2.20462)+" pounds" : it.kg+" kilos"}` : "";
-  return `${it.reps} reps, ${it.ex.replace(/\((left|right)\)/i, "$1 side")}${w}`;
+  return `${it.reps} ${it.side ? "each side" : "reps"}, ${it.ex.replace(/\((left|right)\)/i, "$1 side")}${w}`;
 };
-const metaItem = it => it.ex === REST ? "Breathe, shake it out" : `${it.reps} reps` + (it.kg ? ` · <span class="bell" style="background:${BELL_COL[it.kg]||"var(--muted)"}"></span>${settings().units==="lb"?Math.round(it.kg*2.20462)+" lb":it.kg+" kg"}` : " · bodyweight");
+const metaItem = it => it.ex === REST ? "Breathe, shake it out" : `${it.reps} ${it.side ? "each side" : "reps"}` + (it.kg ? ` · <span class="bell" style="background:${BELL_COL[it.kg]||"var(--muted)"}"></span>${settings().units==="lb"?Math.round(it.kg*2.20462)+" lb":it.kg+" kg"}` : " · bodyweight");
 
+let cueKey = "";
+function setCue(it){
+  const key = it ? it.ex : "";
+  if (key === cueKey) return; cueKey = key;
+  const el = $("#t-cue");
+  if (!it || it.ex === REST) { el.textContent = ""; return; }
+  const cue = cueFor(it.ex), v = videoFor(it.ex);
+  el.innerHTML = esc(cue) + (v ? ` <a href="${esc(v)}" target="_blank" rel="noopener">▶ Video</a>` : "");
+}
 async function keepAwake(){ try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch(e){} }
 document.addEventListener("visibilitychange", () => { if (run && document.visibilityState === "visible") keepAwake(); });
 
@@ -656,7 +681,7 @@ function startWorkout(){
   $("#t-list").hidden = true;
   const seq = [];
   for (let r = 0; r < plan.rounds; r++) plan.items.forEach(it => seq.push({...it, round:r+1}));
-  run = {seq, interval:plan.interval, start:performance.now(), paused:0, pausedAt:null, fired:new Set(), lastIdx:-2, started:new Date(), skipped:0};
+  run = {type:"emom", seq, interval:plan.interval, start:performance.now(), paused:0, pausedAt:null, fired:new Set(), lastIdx:-2, started:new Date(), skipped:0};
   $("#timer").hidden = false; document.body.style.overflow = "hidden";
   $("#t-pause").textContent = "Pause";
   say(`Get ready. First up, ${spokenItem(seq[0])}.`);
@@ -701,7 +726,7 @@ function update(){
   $("#t-sec").textContent = Math.ceil(left);
   $("#t-sub").textContent = run.pausedAt ? "paused" : idx < 0 ? "get ready" : "seconds";
   $("#t-what").textContent = idx < 0 ? "Up first: " + cur.ex : cur.ex;
-  $("#t-meta").innerHTML = metaItem(cur);
+  $("#t-meta").innerHTML = metaItem(cur); setCue(cur);
   const nx = idx < 0 ? run.seq[1] : nextIt;
   $("#t-next").textContent = nx ? nx.ex : "Finish";
   $("#t-nextmeta").innerHTML = nx ? metaItem(nx) : "";
@@ -713,7 +738,7 @@ function update(){
 $("#start").onclick = startWorkout;
 $("#t-pause").onclick = () => {
   if (!run) return;
-  if (run.type === "sets" && run.phase === "work") { for (const it of run.items) { run.reps += +it.reps || 0; run.ton += (+it.reps||0) * (+it.kg||0); } return flowRoundDone(); }
+  if (run.type === "sets" && run.phase === "work") { for (const it of run.items) { run.reps += repsOf(it); run.ton += repsOf(it) * (+it.kg||0); } return flowRoundDone(); }
   if (run.type !== "emom" && run.phase === "work") return flowNext();
   if (run.pausedAt) { run.paused += performance.now() - run.pausedAt; run.pausedAt = null; $("#t-pause").textContent = "Pause"; say("Back to it."); }
   else { run.pausedAt = performance.now(); $("#t-pause").textContent = "Resume"; say("Paused."); }
@@ -739,8 +764,8 @@ function finish(complete){
   const e = elapsed(), I = run.interval;
   const doneN = complete ? run.seq.length : Math.max(0, Math.floor((e - PREP) / I));
   const doneSeq = run.seq.slice(0, doneN);
-  const reps = doneSeq.reduce((a,it) => a + (it.ex===REST?0:+it.reps||0), 0);
-  const ton = doneSeq.reduce((a,it) => a + (it.ex===REST?0:(+it.reps||0)*(+it.kg||0)), 0);
+  const reps = doneSeq.reduce((a,it) => a + (it.ex===REST?0:repsOf(it)), 0);
+  const ton = doneSeq.reduce((a,it) => a + (it.ex===REST?0:repsOf(it)*(+it.kg||0)), 0);
   const names = [...new Set(plan.items.filter(i => i.ex !== REST).map(i => i.ex.replace(/ \((left|right)\)/i,"")))];
   lastResult = {kind:"workout", date:dkey(run.started), ts:run.started.getTime(), source:"timer",
     title:`EMOM ${Math.round(run.seq.length*I/60)} min`, minutes:Math.round(doneN*I/60*10)/10, intervals:doneN, of:run.seq.length,
@@ -769,7 +794,7 @@ $("#d-discard").onclick = () => { lastResult = null; $("#done").hidden = true; d
 
 
 /* ---------- Sets & AMRAP (self-paced) ---------- */
-const shortItem = it => `${it.reps} ${it.ex.replace(/\((left|right)\)/i, "$1 side").replace(/ \(alternating\)/i, " alternating")}`;
+const shortItem = it => `${it.reps}${it.side ? " each side," : ""} ${it.ex.replace(/\((left|right)\)/i, "$1 side").replace(/ \(alternating\)/i, " alternating")}`;
 const restWords = s => s >= 60 ? `${Math.floor(s/60)} minute${s>=120?"s":""}${s%60 ? " " + (s%60) + " seconds" : ""}` : `${s} seconds`;
 function startFlow(){
   const items = plan.items.filter(i => i.ex !== REST).map(i => ({...i}));
@@ -797,7 +822,7 @@ function flowStartRound(e){
 }
 function flowNext(){
   const it = run.items[run.i];
-  run.reps += +it.reps || 0; run.ton += (+it.reps || 0) * (+it.kg || 0);
+  run.reps += repsOf(it); run.ton += repsOf(it) * (+it.kg || 0);
   if (run.i + 1 < run.items.length) { run.i++; beep(880, .1); flowAnnounce(""); update(); return; }
   flowRoundDone();
 }
@@ -818,7 +843,7 @@ function flowSkip(){
   if (run.phase === "prep") { run.start -= (PREP - e) * 1000; update(); return; }
   if (run.phase === "rest") { flowStartRound(e); update(); return; }
   // In a round: jump to "round done"
-  for (let k = run.i; k < run.items.length; k++) { const it = run.items[k]; run.reps += +it.reps || 0; run.ton += (+it.reps||0) * (+it.kg||0); }
+  for (let k = run.i; k < run.items.length; k++) { const it = run.items[k]; run.reps += repsOf(it); run.ton += repsOf(it) * (+it.kg||0); }
   flowRoundDone();
 }
 function updateFlow(){
@@ -859,11 +884,11 @@ function updateFlow(){
   $("#t-total").textContent = run.type === "amrap" && run.phase !== "prep" ? mmss(Math.max(0, capLeft)) + " left" : mmss(Math.max(0, e - PREP));
   $("#t-sec").textContent = big; $("#t-sub").textContent = sub;
   if (run.phase === "rest") {
-    $("#t-what").textContent = "Rest"; $("#t-meta").innerHTML = `${run.roundsDone} round${run.roundsDone===1?"":"s"} done`;
+    $("#t-what").textContent = "Rest"; $("#t-meta").innerHTML = `${run.roundsDone} round${run.roundsDone===1?"":"s"} done`; setCue(null);
     $("#t-next").textContent = run.items[0].ex; $("#t-nextmeta").innerHTML = metaItem(run.items[0]);
   } else {
     const cur = run.phase === "prep" ? run.items[0] : it;
-    $("#t-what").textContent = (run.phase === "prep" ? "Up first: " : "") + cur.ex; $("#t-meta").innerHTML = metaItem(cur);
+    $("#t-what").textContent = (run.phase === "prep" ? "Up first: " : "") + cur.ex; $("#t-meta").innerHTML = metaItem(cur); setCue(cur);
     const n2 = run.phase === "prep" ? run.items[1] : nx;
     $("#t-next").textContent = n2 ? n2.ex : (run.type === "sets" && run.rounds && run.round >= run.rounds ? "Finish" : run.type === "amrap" ? "Round " + (run.round + 1) : "Rest");
     $("#t-nextmeta").innerHTML = n2 ? metaItem(n2) : "";
@@ -874,7 +899,7 @@ function updateFlow(){
   if (listMode) {
     $("#t-round").textContent = rLabel;
     $("#t-total").textContent = mmss(Math.max(0, e - run.phaseAt)) + " this round";
-    $("#t-list").innerHTML = run.items.map(x => `<li><b>${x.reps}</b><span class="nm">${esc(x.ex)}</span><span class="kg">${x.kg ? `<span class="bell" style="background:${BELL_COL[x.kg]||"var(--muted)"}"></span>${fmtBell(x.kg)}` : "body"}</span></li>`).join("");
+    $("#t-list").innerHTML = run.items.map(x => `<li><b>${x.reps}</b><span class="nm">${esc(x.ex)}${x.side ? ' <small style="font:500 13px/1 var(--body);color:var(--muted);text-transform:none">each side</small>' : ""}</span><span class="kg">${x.kg ? `<span class="bell" style="background:${BELL_COL[x.kg]||"var(--muted)"}"></span>${fmtBell(x.kg)}` : "body"}</span></li>`).join("");
     $("#t-pause").textContent = "Done";
     if (!endArm) $("#t-end").textContent = !run.rounds ? "Finish" : "End";
     return;
@@ -896,7 +921,7 @@ function updateFlow(){
 function finishFlow(complete){
   const e = elapsed();
   const minutes = Math.round(Math.max(0, e - PREP) / 60 * 10) / 10;
-  const extra = run.phase === "work" ? run.items.slice(0, run.i).reduce((a,x) => a + (+x.reps||0), 0) : 0;
+  const extra = run.phase === "work" ? run.items.slice(0, run.i).reduce((a,x) => a + repsOf(x), 0) : 0;
   const names = [...new Set(run.items.map(i => i.ex.replace(/ \((left|right|alternating)\)/i,"")))];
   const title = run.type === "amrap" ? `AMRAP ${Math.round(run.cap/60)} min` : `Sets: ${run.roundsDone} round${run.roundsDone===1?"":"s"}`;
   lastResult = {kind:"workout", type:run.type, date:dkey(run.started), ts:run.started.getTime(), source:"timer", title,
@@ -1055,14 +1080,23 @@ function renderWeight(){
 function renderLib(){
   const lib = library();
   $("#lib").innerHTML = `<p class="label" style="margin:8px 0 0">${lib.length} exercises</p>` + lib.map((l,i) => `
-    <div class="lib-item"><div><h3>${esc(l.name)}</h3>${l.cue?`<p>${esc(l.cue)}</p>`:""}</div>
+    <div class="lib-item"><div style="min-width:0;flex:1"><h3>${esc(l.name)}</h3>${l.cue?`<p>${esc(l.cue)}</p>`:""}
+      <p class="row" style="gap:12px;margin-top:6px">${l.video ? `<a href="${esc(l.video)}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">▶ Watch video</a>` : ""}<button class="btn sm ghost" style="min-height:30px;padding:2px 6px" data-vid="${esc(l.name)}">${l.video ? "Change link" : "+ Video link"}</button></p>
+      <div class="row" data-vidrow="${esc(l.name)}" hidden><input type="url" inputmode="url" placeholder="Paste a YouTube link" value="${esc(l.video)}" style="flex:1;min-width:0"><button class="btn sm primary" data-vidsave="${esc(l.name)}">Save</button></div></div>
     ${l.builtin ? "" : `<button class="btn sm ghost danger" data-dellib="${esc(l.name)}">Remove</button>`}</div>`).join("");
 }
-$("#lib").onclick = e => { const b = e.target.closest("[data-dellib]"); if (!b) return; const s = settings(); saveSettings({custom: s.custom.filter(c => c.name !== b.dataset.dellib)}); toast("Removed"); };
+$("#lib").onclick = e => {
+  const v = e.target.closest("[data-vid]");
+  if (v) { const row = [...$$("[data-vidrow]")].find(r => r.dataset.vidrow === v.dataset.vid); row.hidden = !row.hidden; if (!row.hidden) row.querySelector("input").focus(); return; }
+  const sv = e.target.closest("[data-vidsave]");
+  if (sv) { const url = sv.previousElementSibling.value.trim(); if (url && !/^https?:\/\//i.test(url)) { toast("That doesn't look like a web link"); return; }
+    const s = settings(); saveSettings({videos:{...(s.videos||{}), [sv.dataset.vidsave]:url}}); toast(url ? "Video link saved" : "Video link removed"); return; }
+  const b = e.target.closest("[data-dellib]"); if (!b) return; const s = settings(); saveSettings({custom: s.custom.filter(c => c.name !== b.dataset.dellib)}); toast("Removed"); };
 $("#lib-form").onsubmit = e => {
   e.preventDefault(); const name = $("#lib-name").value.trim(); if (!name) return;
   const s = settings(); if (library().some(l => l.name.toLowerCase() === name.toLowerCase())) { toast("That one's already in the list"); return; }
-  saveSettings({custom:[...s.custom, {name, cue:$("#lib-cue").value.trim()}]}); $("#lib-form").reset(); toast("Added " + name);
+  const video = $("#lib-video").value.trim();
+  saveSettings({custom:[...s.custom, {name, cue:$("#lib-cue").value.trim(), video:/^https?:\/\//i.test(video) ? video : ""}]}); $("#lib-form").reset(); toast("Added " + name);
 };
 function renderSettings(){
   const s = settings();
