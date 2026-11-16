@@ -1,12 +1,10 @@
 /* Kettle Hell: Food tab. Rough calorie tracking, saved on the phone with the rest of the app's data
-   (so it's in the backup file). Optional photo estimates call Claude directly with a key kept only on this phone. */
+   (so it's in the backup file). Describe-it / photo estimates use the artifact's built-in Claude (window.claude.use("sample")). */
 (() => {
 "use strict";
 const KH = window.KH; if (!KH) return;
 const {Store, toast, esc, todayKey, dkey, parseKey, fmtDay} = KH;
 const $ = s => document.querySelector(s);
-const KEY_STORE = "kh-food-apikey";          // never goes in the backup file
-const MODEL = "claude-haiku-5-5";
 
 /* [name, portion, kcal, group] — rough, typical values */
 const FOODS = [
@@ -142,8 +140,13 @@ const saveF = patch => Store.put("food-settings", {...fset(), ...patch, kind:"fo
 const entries = day => Store.all("food").filter(f => f.date === day).sort((a,b) => a.ts - b.ts);
 const kcalOf = f => Math.round((+f.kcal || 0) * (+f.qty || 1));
 const dayTotal = day => entries(day).reduce((a,f) => a + kcalOf(f), 0);
-const getKey = () => { try { return localStorage.getItem(KEY_STORE) || ""; } catch(e){ return ""; } };
-const setKey = k => { try { k ? localStorage.setItem(KEY_STORE, k) : localStorage.removeItem(KEY_STORE); } catch(e){} };
+let sampler = null;
+async function getSampler(){
+  if (sampler) return sampler;
+  if (!window.claude || !window.claude.use) throw new Error("Claude estimates only work inside the Claude app version of Kettle Hell.");
+  sampler = await window.claude.use("sample");
+  return sampler;
+}
 const fmtQty = q => q === 0.5 ? "½" : q === 1.5 ? "1½" : q === 2.5 ? "2½" : String(q);
 
 let day = todayKey();
@@ -235,15 +238,6 @@ view.innerHTML = `
   <div class="card">
     <h3>Last 7 days</h3>
     <div id="fd-week"></div>
-  </div>
-
-  <div class="card">
-    <h3>Claude estimates</h3>
-    <div id="fd-keyinfo"></div>
-    <form id="fd-keyform" class="stack" hidden>
-      <div class="field"><label class="label" for="fd-key">Claude API key</label><input id="fd-key" type="password" autocomplete="off" placeholder="sk-ant-…"></div>
-      <div class="row"><button class="btn primary" type="submit">Save key on this phone</button><button class="btn ghost" type="button" id="fd-keycancel">Cancel</button></div>
-    </form>
   </div>`;
 
 /* ---------- Rendering ---------- */
@@ -260,7 +254,7 @@ function render(){
     $("#fd-bar i").style.width = Math.min(100, total / goal * 100) + "%";
     $("#fd-goalbtn").textContent = "Change goal";
   } else { $("#fd-goaltxt").textContent = "kcal"; $("#fd-bar").hidden = true; $("#fd-goalbtn").textContent = "Set a daily goal"; }
-  renderResults(); renderEaten(); renderWeek(); renderKey();
+  renderResults(); renderEaten(); renderWeek();
 }
 
 function recent(){
@@ -294,7 +288,7 @@ function renderEaten(){
   $("#fd-eaten").innerHTML = MEALS.map(m => {
     const its = list.filter(f => (f.meal || "Snacks") === m); if (!its.length) return "";
     return `<div class="fd-meal"><span>${m}</span><span>${its.reduce((a,f)=>a+kcalOf(f),0).toLocaleString()} kcal</span></div>` + its.map(f => `
-      <div class="entry"><div class="body"><h3>${esc(f.name)}</h3><p>${esc([f.portion, kcalOf(f) + " kcal", f.src === "photo" ? "from photo" : ""].filter(Boolean).join(" · "))}</p></div>
+      <div class="entry"><div class="body"><h3>${esc(f.name)}</h3><p>${esc([f.portion, kcalOf(f) + " kcal", f.src === "photo" ? "Claude estimate" : ""].filter(Boolean).join(" · "))}</p></div>
         <div class="fd-qty"><button data-q="${esc(f.id)}" data-d="-0.5" aria-label="Less">−</button><span>×${fmtQty(+f.qty || 1)}</span><button data-q="${esc(f.id)}" data-d="0.5" aria-label="More">+</button></div>
         <span class="confirm" data-wrap="${esc(f.id)}"><button class="icon-btn" data-askdel="${esc(f.id)}" aria-label="Delete">🗑</button></span></div>`).join("");
   }).join("");
@@ -317,22 +311,6 @@ function renderWeek(){
   $("#fd-week").innerHTML = `<div class="summary" style="margin-bottom:8px"><div class="stat"><span class="label">Daily average</span><b>${avg ? avg.toLocaleString() : "–"}<small style="font-size:16px"> kcal</small></b></div>
     <div class="stat"><span class="label">Days logged</span><b>${logged.length}<small style="font-size:16px"> of 7</small></b></div></div>
     <svg class="fd-week" viewBox="0 0 ${W} ${H}" role="img" aria-label="Calories for the last 7 days">${gl}${bars}</svg>`;
-}
-
-function renderKey(){
-  const k = getKey();
-  $("#fd-keyinfo").innerHTML = k
-    ? `<p class="muted" style="margin:0">On. Describe a meal or snap a photo above and Claude (Haiku) fills in the portion and calories. Your key is saved on this phone only and isn't in the backup file. Each estimate costs a tiny fraction of a cent.</p>
-       <div class="row"><button class="btn sm" id="fd-keyedit" type="button">Change key</button><button class="btn sm ghost danger" id="fd-keyoff" type="button">Turn off</button></div>`
-    : `<p class="muted" style="margin:0">To let Claude fill in portions and calories from a description or photo, this app needs its own Claude API key. Your Claude subscription doesn't cover this, so it needs a small prepaid top-up, but each estimate costs a tiny fraction of a cent.</p>
-       <ol class="muted" style="margin:0;padding-left:20px">
-         <li>Go to <b>console.anthropic.com</b> and sign in with your email.</li>
-         <li>Open <b>Billing</b> and buy the smallest amount of credit (about US$5 should last a very long time).</li>
-         <li>Open <b>API keys</b>, tap <b>Create key</b>, name it "Kettle Hell", and copy it.</li>
-         <li>Tap <b>Add API key</b> below and paste it in.</li>
-       </ol>
-       <p class="muted" style="margin:0">Until then, describe your meal or send a photo to Claude in your Kettlebells project chat and it'll give you the numbers.</p>
-       <div class="row"><button class="btn sm" id="fd-keyedit" type="button">Add API key</button></div>`;
 }
 
 /* ---------- Events ---------- */
@@ -358,38 +336,20 @@ $("#fd-eaten").onclick = e => {
   const q = Math.max(0.5, Math.min(10, (+f.qty || 1) + +b.dataset.d));
   Store.put(b.dataset.q, {...f, qty:q});
 };
-view.addEventListener("click", e => {
-  if (e.target.id === "fd-keyedit") { $("#fd-keyform").hidden = false; $("#fd-key").value = ""; $("#fd-key").focus(); }
-  if (e.target.id === "fd-keyoff") { setKey(""); renderKey(); toast("Photo estimates turned off"); }
-});
-$("#fd-keycancel").onclick = () => { $("#fd-keyform").hidden = true; };
-$("#fd-keyform").onsubmit = e => {
-  e.preventDefault(); const k = $("#fd-key").value.trim();
-  if (!/^sk-ant-/.test(k)) { toast("That doesn't look like a Claude API key (it starts sk-ant-)"); return; }
-  setKey(k); $("#fd-keyform").hidden = true; renderKey(); toast("Key saved on this phone");
-};
-
 /* ---------- Claude estimate (description and/or photo) ---------- */
 let photoImg = null;
 const closeResults = () => { photoItems = null; $("#fd-photo").hidden = true; $("#fd-photo").innerHTML = ""; };
 const clearPhoto = () => { photoImg = null; $("#fd-thumb").hidden = true; $("#fd-thumb").innerHTML = ""; };
-function needKey(){
-  const box = $("#fd-photo"); box.hidden = false;
-  box.innerHTML = `<p style="margin:0">Claude estimates need a one-time setup with an API key (steps at the bottom of this page). Until then, send the description or photo to Claude in your Kettlebells project chat and you'll get the numbers back.</p>
-    <div class="row"><button class="btn sm" type="button" id="fd-gokey">Show me the steps</button><button class="btn sm ghost" type="button" id="fd-photoclose">Close</button></div>`;
-}
-$("#fd-photobtn").onclick = () => { if (!getKey()) { needKey(); return; } $("#fd-file").click(); };
+$("#fd-photobtn").onclick = () => $("#fd-file").click();
 $("#fd-ask").onsubmit = e => {
   e.preventDefault();
   const text = $("#fd-desc").value.trim();
   if (!text && !photoImg) { toast("Describe what you ate, or add a photo"); $("#fd-desc").focus(); return; }
-  if (!getKey()) { needKey(); return; }
   askClaude(photoImg, text);
 };
 $("#fd-thumb").addEventListener("click", e => { if (e.target.id === "fd-thumbx") clearPhoto(); });
 $("#fd-photo").addEventListener("click", e => {
   if (e.target.id === "fd-photoclose") closeResults();
-  if (e.target.id === "fd-gokey") { closeResults(); $("#fd-keyinfo").scrollIntoView({behavior:"smooth", block:"center"}); }
   if (e.target.id === "fd-photoadd") {
     $$p(".fd-pi").forEach((row, i) => { photoItems[i].on = row.querySelector("input[type=checkbox]").checked; photoItems[i].kcal = Math.round(+row.querySelector("input[type=number]").value || 0); });
     const picked = photoItems.filter(p => p.on);
@@ -426,6 +386,11 @@ $("#fd-file").onchange = async e => {
   $("#fd-desc").placeholder = "Optional: anything the photo doesn't show, e.g. large serve, cooked in butter";
 };
 
+function toBlob(dataUrl){
+  const [head, b64] = dataUrl.split(","), bin = atob(b64), arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], {type:(head.match(/data:([^;]+)/) || [])[1] || "image/jpeg"});
+}
 async function askClaude(dataUrl, text){
   const box = $("#fd-photo"); box.hidden = false;
   box.innerHTML = `<p class="muted" style="margin:0">Working it out…</p>`;
@@ -438,31 +403,17 @@ List each separate food or drink. For each one give:
 - kcal: your best single calorie estimate for that portion (a whole number)
 - desc: one short line describing it, useful if I log it again (e.g. "White bread, toasted, thin spread of butter")
 Reply with only JSON, no other text: {"items":[{"name":"","portion":"","kcal":0,"desc":""}],"note":"optional short sentence"}. If it isn't food or drink, reply {"items":[],"note":"why"}.`;
-  const content = [];
-  if (dataUrl) content.push({type:"image", source:{type:"base64", media_type:"image/jpeg", data:dataUrl.split(",")[1]}});
-  content.push({type:"text", text:prompt});
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method:"POST",
-      headers:{"content-type":"application/json", "x-api-key":getKey(), "anthropic-version":"2026-10-21", "anthropic-dangerous-direct-browser-access":"true"},
-      body: JSON.stringify({model:MODEL, max_tokens:4000, output_config:{effort:"low"}, messages:[{role:"user", content}]})
-    });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) {
-      const msg = r.status === 401 ? "The API key didn't work. Check it at the bottom of this page."
-        : /credit/i.test(JSON.stringify(j)) ? "Your Claude API account is out of credit. Top up under Billing at console.anthropic.com."
-        : r.status === 429 || r.status === 529 ? "Claude is busy right now. Try again in a minute."
-        : "Something went wrong (" + r.status + "). Try again.";
-      throw new Error(msg);
-    }
-    if (j.stop_reason === "refusal") throw new Error("Claude couldn't estimate that one. Try the list below instead.");
-    const out = (j.content || []).filter(b => b.type === "text").map(b => b.text).join("");
+    const sample = await getSampler();
+    const opts = dataUrl ? {images:[toBlob(dataUrl)]} : undefined;
+    const res = await sample(prompt, opts);
+    const out = String((res && res.text) || res || "");
     const o = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
     photoItems = (o.items || []).map(it => ({name:String(it.name || "Food").slice(0, 60), portion:String(it.portion || "").slice(0, 40),
       desc:String(it.desc || "").slice(0, 120), kcal:Math.max(0, Math.round(+it.kcal || 0)), on:true}));
     showPhotoItems(o.note);
   } catch(err) {
-    const msg = err && err.message && !/JSON|Unexpected|position/.test(err.message) ? err.message : (navigator.onLine ? "Couldn't read Claude's answer. Try again." : "You're offline. Estimates need internet.");
+    const msg = err && err.message && !/JSON|Unexpected|position/.test(err.message) ? err.message : (navigator.onLine ? "Couldn't get an estimate that time. Try again." : "You're offline. Estimates need internet.");
     box.innerHTML = `<p style="margin:0;color:var(--bad)">${esc(msg)}</p><div class="row"><button class="btn sm ghost" type="button" id="fd-photoclose">Close</button></div>`;
   } finally { btn.disabled = false; }
 }
