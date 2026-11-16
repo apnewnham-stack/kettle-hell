@@ -6,7 +6,7 @@ const KH = window.KH; if (!KH) return;
 const {Store, toast, esc, todayKey, dkey, parseKey, fmtDay} = KH;
 const $ = s => document.querySelector(s);
 const KEY_STORE = "kh-food-apikey";          // never goes in the backup file
-const MODEL = "claude-opus-5-5";
+const MODEL = "claude-haiku-5-5";
 
 /* [name, portion, kcal, group] — rough, typical values */
 const FOODS = [
@@ -150,11 +150,11 @@ let day = todayKey();
 let query = "";
 let photoItems = null; // [{name, portion, kcal, on}]
 
-function addFood({name, portion = "", kcal, src = "list", qty = 1}){
+function addFood({name, portion = "", kcal, src = "list", qty = 1, desc = ""}){
   const d = parseKey(day), now = new Date(); d.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
   const ts = d.getTime() + Math.floor(Math.random() * 1000);
   const meal = day === todayKey() ? mealFor(now) : mealFor(d);
-  Store.put("f-" + ts, {kind:"food", date:day, ts, name, portion, kcal:Math.round(+kcal || 0), qty, meal, src});
+  Store.put("f-" + ts, {kind:"food", date:day, ts, name, portion, desc, kcal:Math.round(+kcal || 0), qty, meal, src});
   toast(`Added ${name} · ${Math.round(kcal * qty)} kcal`);
 }
 
@@ -204,9 +204,15 @@ view.innerHTML = `
 
   <div class="card">
     <h2>Add food</h2>
-    <button class="btn primary" id="fd-photobtn">📷 Estimate from a photo</button>
+    <form id="fd-ask" class="stack">
+      <div class="field"><label class="label" for="fd-desc">Describe what you ate</label>
+        <textarea id="fd-desc" placeholder="e.g. two slices of toast with butter and a flat white"></textarea></div>
+      <div id="fd-thumb" class="fd-photo" hidden></div>
+      <div class="row" style="flex-wrap:nowrap"><button class="btn primary" type="submit" id="fd-askbtn" style="flex:1">Estimate calories</button><button class="btn" type="button" id="fd-photobtn">📷 Photo</button></div>
+    </form>
     <input type="file" id="fd-file" accept="image/*" capture="environment" hidden>
     <div id="fd-photo" class="stack fd-photo" hidden></div>
+    <p class="label" style="margin:6px 0 0">Or pick from the list</p>
     <input id="fd-q" type="search" placeholder="Search foods, e.g. pie, latte, banana" autocomplete="off">
     <div id="fd-results" class="fd-list"></div>
     <button class="btn sm ghost" id="fd-custombtn" style="align-self:flex-start">+ Type in your own food</button>
@@ -232,7 +238,7 @@ view.innerHTML = `
   </div>
 
   <div class="card">
-    <h3>Photo estimates</h3>
+    <h3>Claude estimates</h3>
     <div id="fd-keyinfo"></div>
     <form id="fd-keyform" class="stack" hidden>
       <div class="field"><label class="label" for="fd-key">Claude API key</label><input id="fd-key" type="password" autocomplete="off" placeholder="sk-ant-…"></div>
@@ -260,7 +266,7 @@ function render(){
 function recent(){
   const seen = new Map();
   Store.all("food").sort((a,b) => b.ts - a.ts).forEach(f => { const k = f.name + "|" + f.kcal; if (!seen.has(k)) seen.set(k, f); });
-  return [...seen.values()].slice(0, 8).map(f => ({name:f.name, portion:f.portion, kcal:f.kcal, src:f.src === "photo" ? "custom" : f.src}));
+  return [...seen.values()].slice(0, 8).map(f => ({name:f.name, portion:f.portion, desc:f.desc || "", kcal:f.kcal, src:f.src === "photo" ? "custom" : f.src}));
 }
 function allFoods(){
   return [...fset().mine.map(m => ({...m, mine:true})), ...FOODS.map(([name, portion, kcal, group]) => ({name, portion, kcal, group}))];
@@ -269,15 +275,15 @@ let shown = [];
 function renderResults(){
   const q = query.trim().toLowerCase();
   let head = "";
-  if (!q) { shown = recent(); head = shown.length ? `<p class="label" style="margin:0 0 4px">Recent</p>` : `<p class="muted" style="margin:0">Search above, or snap a photo. Foods you add show up here for one-tap logging.</p>`; }
+  if (!q) { shown = recent(); head = shown.length ? `<p class="label" style="margin:0 0 4px">Recent</p>` : `<p class="muted" style="margin:0">Foods you add show up here for one-tap logging next time.</p>`; }
   else {
     const words = q.split(/\s+/);
-    shown = allFoods().filter(f => words.every(w => (f.name + " " + (f.group || "")).toLowerCase().includes(w))).slice(0, 25);
-    if (!shown.length) head = `<p class="muted" style="margin:0">Nothing matches “${esc(query)}”. Type it in as your own food below, with a rough guess.</p>`;
+    shown = allFoods().filter(f => words.every(w => (f.name + " " + (f.group || "") + " " + (f.desc || "")).toLowerCase().includes(w))).slice(0, 25);
+    if (!shown.length) head = `<p class="muted" style="margin:0">Nothing matches “${esc(query)}”. Describe it in the box above and let Claude estimate it.</p>`;
   }
   $("#fd-results").innerHTML = head + shown.map((f, i) => `
     <button class="fd-item" data-add="${i}" type="button">
-      <div><h3>${esc(f.name)}${f.mine ? ' <span class="muted" style="font-weight:400">· mine</span>' : ""}</h3><p>${esc(f.portion || "1 serve")}</p></div>
+      <div><h3>${esc(f.name)}${f.mine ? ' <span class="muted" style="font-weight:400">· mine</span>' : ""}</h3><p>${esc(f.portion || "1 serve")}</p>${f.desc ? `<p>${esc(f.desc)}</p>` : ""}</div>
       <div class="row" style="flex-wrap:nowrap"><span class="k">${f.kcal}</span><span class="fd-plus" aria-hidden="true">+</span></div>
     </button>`).join("");
 }
@@ -316,10 +322,16 @@ function renderWeek(){
 function renderKey(){
   const k = getKey();
   $("#fd-keyinfo").innerHTML = k
-    ? `<p class="muted" style="margin:0">Photo estimates are on. Your key is saved on this phone only, and isn't in the backup file. Each photo costs about one cent on your Claude API account.</p>
+    ? `<p class="muted" style="margin:0">On. Describe a meal or snap a photo above and Claude (Haiku) fills in the portion and calories. Your key is saved on this phone only and isn't in the backup file. Each estimate costs a tiny fraction of a cent.</p>
        <div class="row"><button class="btn sm" id="fd-keyedit" type="button">Change key</button><button class="btn sm ghost danger" id="fd-keyoff" type="button">Turn off</button></div>`
-    : `<p class="muted" style="margin:0">Free option: send a photo of your meal to Claude in your Kettlebells project chat, and you'll get a calorie estimate back to add here.</p>
-       <p class="muted" style="margin:0">One-tap option: paste a Claude API key (from console.anthropic.com, about one cent per photo) and the 📷 button will estimate right here in the app.</p>
+    : `<p class="muted" style="margin:0">To let Claude fill in portions and calories from a description or photo, this app needs its own Claude API key. Your Claude subscription doesn't cover this, so it needs a small prepaid top-up, but each estimate costs a tiny fraction of a cent.</p>
+       <ol class="muted" style="margin:0;padding-left:20px">
+         <li>Go to <b>console.anthropic.com</b> and sign in with your email.</li>
+         <li>Open <b>Billing</b> and buy the smallest amount of credit (about US$5 should last a very long time).</li>
+         <li>Open <b>API keys</b>, tap <b>Create key</b>, name it "Kettle Hell", and copy it.</li>
+         <li>Tap <b>Add API key</b> below and paste it in.</li>
+       </ol>
+       <p class="muted" style="margin:0">Until then, describe your meal or send a photo to Claude in your Kettlebells project chat and it'll give you the numbers.</p>
        <div class="row"><button class="btn sm" id="fd-keyedit" type="button">Add API key</button></div>`;
 }
 
@@ -357,30 +369,41 @@ $("#fd-keyform").onsubmit = e => {
   setKey(k); $("#fd-keyform").hidden = true; renderKey(); toast("Key saved on this phone");
 };
 
-/* ---------- Photo estimate ---------- */
-$("#fd-photobtn").onclick = () => {
-  if (!getKey()) {
-    const box = $("#fd-photo"); box.hidden = false;
-    box.innerHTML = `<p style="margin:0">Photo estimates need one quick setup. For now, send the photo to Claude in your Kettlebells project chat and you'll get the calories back, or add an API key at the bottom of this page for one-tap estimates.</p>
-      <div class="row"><button class="btn sm" type="button" id="fd-gokey">Show me</button><button class="btn sm ghost" type="button" id="fd-photoclose">Close</button></div>`;
-    return;
-  }
-  $("#fd-file").click();
+/* ---------- Claude estimate (description and/or photo) ---------- */
+let photoImg = null;
+const closeResults = () => { photoItems = null; $("#fd-photo").hidden = true; $("#fd-photo").innerHTML = ""; };
+const clearPhoto = () => { photoImg = null; $("#fd-thumb").hidden = true; $("#fd-thumb").innerHTML = ""; };
+function needKey(){
+  const box = $("#fd-photo"); box.hidden = false;
+  box.innerHTML = `<p style="margin:0">Claude estimates need a one-time setup with an API key (steps at the bottom of this page). Until then, send the description or photo to Claude in your Kettlebells project chat and you'll get the numbers back.</p>
+    <div class="row"><button class="btn sm" type="button" id="fd-gokey">Show me the steps</button><button class="btn sm ghost" type="button" id="fd-photoclose">Close</button></div>`;
+}
+$("#fd-photobtn").onclick = () => { if (!getKey()) { needKey(); return; } $("#fd-file").click(); };
+$("#fd-ask").onsubmit = e => {
+  e.preventDefault();
+  const text = $("#fd-desc").value.trim();
+  if (!text && !photoImg) { toast("Describe what you ate, or add a photo"); $("#fd-desc").focus(); return; }
+  if (!getKey()) { needKey(); return; }
+  askClaude(photoImg, text);
 };
+$("#fd-thumb").addEventListener("click", e => { if (e.target.id === "fd-thumbx") clearPhoto(); });
 $("#fd-photo").addEventListener("click", e => {
-  if (e.target.id === "fd-photoclose") { photoItems = null; $("#fd-photo").hidden = true; $("#fd-photo").innerHTML = ""; }
-  if (e.target.id === "fd-gokey") { $("#fd-photo").hidden = true; $("#fd-keyinfo").scrollIntoView({behavior:"smooth", block:"center"}); }
+  if (e.target.id === "fd-photoclose") closeResults();
+  if (e.target.id === "fd-gokey") { closeResults(); $("#fd-keyinfo").scrollIntoView({behavior:"smooth", block:"center"}); }
   if (e.target.id === "fd-photoadd") {
     $$p(".fd-pi").forEach((row, i) => { photoItems[i].on = row.querySelector("input[type=checkbox]").checked; photoItems[i].kcal = Math.round(+row.querySelector("input[type=number]").value || 0); });
-    const picked = photoItems.filter(p => p.on && p.kcal >= 0);
-    picked.forEach(p => addFood({name:p.name, portion:p.portion, kcal:p.kcal, src:"photo"}));
+    const picked = photoItems.filter(p => p.on);
+    if (!picked.length) { toast("Tick at least one item"); return; }
+    if ($("#fd-save") && $("#fd-save").checked) {
+      const s = fset(), names = new Set(picked.map(p => p.name.toLowerCase()));
+      saveF({mine: [...picked.map(p => ({name:p.name, portion:p.portion, kcal:p.kcal, desc:p.desc})), ...s.mine.filter(m => !names.has(m.name.toLowerCase()))].slice(0, 200)});
+    }
+    picked.forEach(p => addFood({name:p.name, portion:p.portion, kcal:p.kcal, desc:p.desc, src:"photo"}));
     if (picked.length > 1) toast(`Added ${picked.length} items · ${picked.reduce((a,p)=>a+p.kcal,0)} kcal`);
-    photoItems = null; $("#fd-photo").hidden = true; $("#fd-photo").innerHTML = "";
+    closeResults(); clearPhoto(); $("#fd-desc").value = "";
   }
-  if (e.target.id === "fd-photoretry") { photoImg && askClaude(photoImg, $("#fd-hint") ? $("#fd-hint").value : ""); }
 });
 const $$p = s => Array.from($("#fd-photo").querySelectorAll(s));
-let photoImg = null;
 
 function shrink(file){
   return new Promise((res, rej) => {
@@ -395,66 +418,68 @@ function shrink(file){
     img.src = url;
   });
 }
-
 $("#fd-file").onchange = async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
   try { photoImg = await shrink(f); } catch(_) { toast("Couldn't read that photo"); return; }
-  const box = $("#fd-photo"); box.hidden = false;
-  box.innerHTML = `<img src="${photoImg}" alt="Your meal">
-    <div class="field"><label class="label" for="fd-hint">Anything the photo doesn't show? (optional)</label><input id="fd-hint" placeholder="e.g. large serve, cooked in butter, 2 of these"></div>
-    <div class="row"><button class="btn primary" type="button" id="fd-photoretry">Estimate calories</button><button class="btn ghost" type="button" id="fd-photoclose">Cancel</button></div>`;
+  $("#fd-thumb").hidden = false;
+  $("#fd-thumb").innerHTML = `<img src="${photoImg}" alt="Your meal"><button class="btn sm ghost" type="button" id="fd-thumbx">Remove photo</button>`;
+  $("#fd-desc").placeholder = "Optional: anything the photo doesn't show, e.g. large serve, cooked in butter";
 };
 
-async function askClaude(dataUrl, hint){
-  const box = $("#fd-photo");
-  const status = document.createElement("p"); status.className = "muted"; status.style.margin = "0"; status.textContent = "Having a look…";
-  box.querySelectorAll(".fd-err").forEach(x => x.remove());
-  box.append(status);
-  const btn = $("#fd-photoretry"); if (btn) btn.disabled = true;
-  const prompt = `This is a photo of something I ate or drank. List each food or drink you can see, with a rough portion and a rough calorie estimate for what's shown. Accuracy isn't critical; give your best single guess for each item.${hint ? ` Extra info from me: "${hint}".` : ""}
-Reply with only JSON, no other text, in this shape: {"items":[{"name":"short name","portion":"e.g. 1 plate","kcal":123}],"note":"one short sentence, optional"}. If it isn't food, reply {"items":[],"note":"why"}.`;
+async function askClaude(dataUrl, text){
+  const box = $("#fd-photo"); box.hidden = false;
+  box.innerHTML = `<p class="muted" style="margin:0">Working it out…</p>`;
+  const btn = $("#fd-askbtn"); btn.disabled = true;
+  const prompt = `I'm logging what I ate in a calorie tracker. Rough numbers are fine.
+${dataUrl ? "The photo shows what I ate." : ""}${text ? ` My description: "${text}".` : ""}
+List each separate food or drink. For each one give:
+- name: a short, tidy name I'd recognise in a list (e.g. "Toast with butter")
+- portion: the amount I said, or a typical portion if I didn't say (e.g. "2 slices")
+- kcal: your best single calorie estimate for that portion (a whole number)
+- desc: one short line describing it, useful if I log it again (e.g. "White bread, toasted, thin spread of butter")
+Reply with only JSON, no other text: {"items":[{"name":"","portion":"","kcal":0,"desc":""}],"note":"optional short sentence"}. If it isn't food or drink, reply {"items":[],"note":"why"}.`;
+  const content = [];
+  if (dataUrl) content.push({type:"image", source:{type:"base64", media_type:"image/jpeg", data:dataUrl.split(",")[1]}});
+  content.push({type:"text", text:prompt});
   try {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method:"POST",
       headers:{"content-type":"application/json", "x-api-key":getKey(), "anthropic-version":"2026-10-21", "anthropic-dangerous-direct-browser-access":"true"},
-      body: JSON.stringify({model:MODEL, max_tokens:4000, output_config:{effort:"low"},
-        messages:[{role:"user", content:[{type:"image", source:{type:"base64", media_type:"image/jpeg", data:dataUrl.split(",")[1]}}, {type:"text", text:prompt}]}]})
+      body: JSON.stringify({model:MODEL, max_tokens:4000, output_config:{effort:"low"}, messages:[{role:"user", content}]})
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
       const msg = r.status === 401 ? "The API key didn't work. Check it at the bottom of this page."
-        : r.status === 400 && /credit/i.test(JSON.stringify(j)) ? "Your Claude API account is out of credit."
+        : /credit/i.test(JSON.stringify(j)) ? "Your Claude API account is out of credit. Top up under Billing at console.anthropic.com."
         : r.status === 429 || r.status === 529 ? "Claude is busy right now. Try again in a minute."
         : "Something went wrong (" + r.status + "). Try again.";
       throw new Error(msg);
     }
-    if (j.stop_reason === "refusal") throw new Error("Claude couldn't estimate that one. Try searching instead.");
-    const text = (j.content || []).filter(b => b.type === "text").map(b => b.text).join("");
-    const s = text.indexOf("{"), en = text.lastIndexOf("}");
-    const o = JSON.parse(text.slice(s, en + 1));
-    photoItems = (o.items || []).map(it => ({name:String(it.name || "Food").slice(0, 60), portion:String(it.portion || "").slice(0, 40), kcal:Math.max(0, Math.round(+it.kcal || 0)), on:true}));
+    if (j.stop_reason === "refusal") throw new Error("Claude couldn't estimate that one. Try the list below instead.");
+    const out = (j.content || []).filter(b => b.type === "text").map(b => b.text).join("");
+    const o = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
+    photoItems = (o.items || []).map(it => ({name:String(it.name || "Food").slice(0, 60), portion:String(it.portion || "").slice(0, 40),
+      desc:String(it.desc || "").slice(0, 120), kcal:Math.max(0, Math.round(+it.kcal || 0)), on:true}));
     showPhotoItems(o.note);
   } catch(err) {
-    status.remove(); if (btn) btn.disabled = false;
-    const p = document.createElement("p"); p.className = "fd-err"; p.style.cssText = "margin:0;color:var(--bad)";
-    p.textContent = err && err.message && !/JSON|Unexpected/.test(err.message) ? err.message : (navigator.onLine ? "Couldn't read Claude's answer. Try again." : "You're offline. Photo estimates need internet.");
-    box.append(p);
-  }
+    const msg = err && err.message && !/JSON|Unexpected|position/.test(err.message) ? err.message : (navigator.onLine ? "Couldn't read Claude's answer. Try again." : "You're offline. Estimates need internet.");
+    box.innerHTML = `<p style="margin:0;color:var(--bad)">${esc(msg)}</p><div class="row"><button class="btn sm ghost" type="button" id="fd-photoclose">Close</button></div>`;
+  } finally { btn.disabled = false; }
 }
 
 function showPhotoItems(note){
   const box = $("#fd-photo");
   if (!photoItems.length) {
-    box.innerHTML = `<img src="${photoImg}" alt="Your meal"><p style="margin:0">${esc(note || "Couldn't spot any food in that one.")}</p>
-      <div class="row"><button class="btn ghost" type="button" id="fd-photoclose">Close</button></div>`; return;
+    box.innerHTML = `<p style="margin:0">${esc(note || "Couldn't spot any food in that.")}</p><div class="row"><button class="btn ghost" type="button" id="fd-photoclose">Close</button></div>`; return;
   }
   const total = photoItems.reduce((a,p) => a + p.kcal, 0);
-  box.innerHTML = `<img src="${photoImg}" alt="Your meal">
+  box.innerHTML = `
     <div class="fd-total"><b style="font-size:36px">${total.toLocaleString()}</b><span class="muted">kcal, roughly</span></div>
     ${note ? `<p class="muted" style="margin:0">${esc(note)}</p>` : ""}
-    <div>${photoItems.map((p, i) => `<label class="fd-pi"><input type="checkbox" checked><div><h3>${esc(p.name)}</h3><p>${esc(p.portion)}</p></div>
+    <div>${photoItems.map((p, i) => `<label class="fd-pi"><input type="checkbox" checked><div><h3>${esc(p.name)}</h3><p>${esc(p.portion)}</p>${p.desc ? `<p>${esc(p.desc)}</p>` : ""}</div>
       <input type="number" inputmode="numeric" min="0" max="5000" value="${p.kcal}" aria-label="Calories for ${esc(p.name)}"></label>`).join("")}</div>
-    <p class="muted" style="margin:0;font-size:14px">Untick anything that's wrong, or fix the numbers, then add.</p>
+    <label class="row" style="gap:10px;flex-wrap:nowrap"><input type="checkbox" id="fd-save" checked style="width:22px;height:22px;min-height:0;flex:none"> Save these to my foods for one-tap logging next time</label>
+    <p class="muted" style="margin:0;font-size:14px">Untick anything that's wrong or fix a number, then add.</p>
     <div class="row"><button class="btn primary" type="button" id="fd-photoadd">Add to ${day === todayKey() ? "today" : "this day"}</button><button class="btn ghost" type="button" id="fd-photoclose">Cancel</button></div>`;
 }
 
