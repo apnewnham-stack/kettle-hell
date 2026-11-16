@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#141719">
 <meta name="description" content="Kettlebell EMOM timer with voice cues, workout log and weight tracker.">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/kh2-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/kh2-192.png">
 <title>Kettle Hell</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&display=swap">
@@ -74,6 +74,8 @@ textarea{min-height:70px;resize:vertical}
 .prow [data-f="ex"]{grid-column:2/5}
 .repwrap{display:flex;align-items:center;gap:6px;min-width:0}
 .repwrap span{font-size:14px;color:var(--muted)}
+.repwrap input{flex:0 0 58px;width:58px;padding:8px 6px}
+.repwrap select{flex:1;min-width:0}
 .prow .n{font:700 18px/1 var(--display);color:var(--muted);text-align:center}
 .prow select,.prow input{padding:8px 6px;min-height:40px;font-size:15px}
 .summary{display:flex;gap:16px;flex-wrap:wrap;align-items:baseline}
@@ -101,6 +103,15 @@ textarea{min-height:70px;resize:vertical}
 .t-next{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;width:100%;max-width:480px;display:flex;justify-content:space-between;gap:12px;align-items:center}
 .t-next .what{font:700 20px/1.1 var(--display);text-transform:uppercase}
 .t-ctl{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:10px;max-width:480px;width:100%;margin:0 auto}
+.wlist{display:flex;flex-direction:column;gap:8px}
+.wcard{display:flex;align-items:center;gap:12px;text-align:left;width:100%;background:var(--sunk);border:2px solid transparent;border-radius:12px;padding:12px 14px;min-height:64px}
+.wcard .wt{font:700 13px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;padding:6px 8px;border-radius:6px;background:var(--surface);color:var(--muted);flex:none;min-width:54px;text-align:center}
+.wcard .wn{display:block;font:700 22px/1.1 var(--display);text-transform:uppercase;letter-spacing:.02em}
+.wcard .wm{display:block;font-size:13px;color:var(--muted);margin-top:3px}
+.wcard .wb{flex:1;min-width:0}
+.wcard[aria-pressed="true"]{border-color:var(--accent);background:var(--surface)}
+.wcard[aria-pressed="true"] .wt{background:var(--accent);color:var(--accent-fg)}
+.wcard.new{justify-content:center;border:2px dashed var(--line);background:transparent;color:var(--muted);font-weight:600;min-height:48px}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--sunk);border-radius:10px;padding:4px;gap:4px}
 .seg button{border:0;background:transparent;border-radius:8px;padding:10px 4px;font:700 18px/1 var(--display);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);min-height:42px}
 .seg button[aria-checked="true"]{background:var(--surface);color:var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.15)}
@@ -157,19 +168,19 @@ textarea{min-height:70px;resize:vertical}
   <!-- TRAIN -->
   <section id="v-train" class="stack">
     <div class="card">
-      <div class="row" style="justify-content:space-between">
-        <h2>Workout builder</h2>
-      </div>
+      <h2>Workouts</h2>
+      <div class="wlist" id="wlist"></div>
+      <div class="summary" id="plan-sum"></div>
+      <button class="btn primary big" id="start">Start workout</button>
+      <button class="btn" id="edit-toggle" aria-expanded="false">Edit this workout</button>
+      <div id="editor" class="stack" hidden>
       <div class="seg" role="radiogroup" aria-label="Workout type" id="wtype">
         <button type="button" role="radio" data-type="emom" aria-checked="true">EMOM</button>
         <button type="button" role="radio" data-type="amrap" aria-checked="false">AMRAP</button>
         <button type="button" role="radio" data-type="sets" aria-checked="false">Sets</button>
       </div>
+      <div class="field"><label class="label" for="w-name">Name</label><input id="w-name" placeholder="e.g. Monday swings"></div>
       <p class="muted" id="type-help" style="margin:0;font-size:14px"></p>
-      <div class="field">
-        <label class="label" for="preset">Start from</label>
-        <select id="preset"></select>
-      </div>
       <div class="plan" id="plan"></div>
       <div class="row">
         <button class="btn sm" id="add-row">+ Add exercise</button>
@@ -203,15 +214,11 @@ textarea{min-height:70px;resize:vertical}
           <select id="cap"><option value="5">5 minutes</option><option value="8">8 minutes</option><option value="10">10 minutes</option><option value="12">12 minutes</option><option value="15">15 minutes</option><option value="20">20 minutes</option><option value="25">25 minutes</option><option value="30">30 minutes</option><option value="40">40 minutes</option></select>
         </div>
       </div>
-      <div class="summary" id="plan-sum"></div>
-      <button class="btn primary big" id="start">Start workout</button>
-      <div class="row">
-        <button class="btn sm ghost" id="save-preset">Save as my workout</button>
-        <button class="btn sm ghost danger" id="del-preset" hidden>Delete this saved workout</button>
-      </div>
-      <div class="row" id="preset-name-row" hidden>
-        <input id="preset-name" placeholder="Name, e.g. Monday swings" style="flex:1;min-width:0">
-        <button class="btn sm primary" id="preset-name-ok">Save</button>
+        <div class="row">
+          <button class="btn sm primary" id="save-preset">Save as a new workout</button>
+          <button class="btn sm ghost danger" id="del-preset" hidden>Delete this workout</button>
+        </div>
+        <p class="muted" id="edit-note" style="margin:0;font-size:13px"></p>
       </div>
     </div>
     <div class="card">
@@ -291,6 +298,7 @@ textarea{min-height:70px;resize:vertical}
         <div class="field"><label class="label" for="s-units">Weight units</label>
           <select id="s-units"><option value="kg">Kilograms</option><option value="lb">Pounds</option></select></div>
       </div>
+      <div class="field"><label class="label" for="s-bell">Your kettlebell</label><select id="s-bell"><option value="4">4 kg</option><option value="6">6 kg</option><option value="8">8 kg</option><option value="10">10 kg</option><option value="12">12 kg</option><option value="14">14 kg</option><option value="16">16 kg</option><option value="18">18 kg</option><option value="20">20 kg</option><option value="22">22 kg</option><option value="24">24 kg</option><option value="26">26 kg</option><option value="28">28 kg</option><option value="32">32 kg</option><option value="36">36 kg</option><option value="40">40 kg</option><option value="44">44 kg</option><option value="48">48 kg</option></select></div>
       <div class="field"><label class="label" for="s-voicename">Voice</label><select id="s-voicename"><option value="">Phone default</option></select></div>
       <button class="btn" id="s-test">Test the voice</button>
     </div>
@@ -424,20 +432,12 @@ const BELLS = [4,6,8,10,12,14,16,18,20,22,24,26,28,32,36,40,44,48];
 const BELL_COL = {8:"#ff8fb8",12:"#3b7dd8",16:"#f2c200",20:"#8a4fc7",24:"#2e9e48",28:"#ef7d22",32:"#d5302a",36:"#7b7f86",40:"#f4f4f4",44:"#c0c4c8",48:"#d4af37"};
 
 const PRESETS = [
-  {id:"p-twist", name:"EMOM: Twist and Shout (10 min)", type:"emom", rounds:2, interval:60, items:[
+  {id:"p-twist", name:"Twist and Shout", type:"emom", rounds:2, interval:60, items:[
     {ex:"Rotational thruster",reps:5,side:true,kg:16},{ex:"Deadlift to halo",reps:5,side:true,kg:16},{ex:"Lunge to press-out",reps:5,side:true,kg:16},
     {ex:"Pullover rotation",reps:5,side:true,kg:16},{ex:"Cross-body lunge",reps:5,side:true,kg:16}]},
-  {id:"p-flow", name:"Sets: Full-body flow", type:"sets", rounds:0, rest:90, interval:60, items:[
+  {id:"p-flow", name:"Full-body flow", type:"sets", rounds:0, rest:90, interval:60, items:[
     {ex:"Two-arm row",reps:5,kg:16},{ex:"Clean",reps:5,kg:16},{ex:"Two-hand swing",reps:5,kg:16},{ex:"Goblet squat",reps:5,kg:16},
     {ex:"Bicep curl",reps:5,kg:16},{ex:"Tricep extension",reps:5,kg:16},{ex:"Pullover",reps:5,kg:16},{ex:"Halo (alternating)",reps:10,kg:16},{ex:"Push-up",reps:10,kg:0}]},
-  {id:"p-amrap15", name:"AMRAP 15: swing, squat, push-up", type:"amrap", cap:15, rounds:1, interval:60, items:[
-    {ex:"Two-hand swing",reps:10,kg:16},{ex:"Goblet squat",reps:8,kg:16},{ex:"Push-up",reps:6,kg:0}]},
-  {id:"p-swing100", name:"EMOM: Swing 100 (10 min)", rounds:10, interval:60, items:[{ex:"Two-hand swing",reps:10,kg:16}]},
-  {id:"p-full20", name:"EMOM: Full body 20", rounds:4, interval:60, items:[
-    {ex:"Two-hand swing",reps:15,kg:16},{ex:"Goblet squat",reps:10,kg:16},{ex:"Press (left)",reps:5,kg:16},{ex:"Press (right)",reps:5,kg:16},{ex:REST,reps:0,kg:0}]},
-  {id:"p-cp", name:"EMOM: Clean & press 16", rounds:8, interval:60, items:[{ex:"Clean and press (left)",reps:5,kg:16},{ex:"Clean and press (right)",reps:5,kg:16}]},
-  {id:"p-legs", name:"EMOM: Legs & lungs 15", rounds:5, interval:60, items:[{ex:"Goblet squat",reps:12,kg:16},{ex:"Goblet reverse lunge",reps:10,kg:16},{ex:"Burpee",reps:8,kg:0}]},
-  {id:"p-snatch", name:"EMOM: Snatch 12", rounds:6, interval:60, items:[{ex:"Snatch (left)",reps:8,kg:16},{ex:"Snatch (right)",reps:8,kg:16}]},
 ];
 
 /* ---------- Store: Claude account db + phone copy ---------- */
@@ -469,7 +469,7 @@ const Store = {
     try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch(e){}
   }};
 
-const DEFAULT_SETTINGS = {kind:"settings", voice:true, cues:false, beep:true, rate:1, units:"kg", voiceName:"", custom:[], presets:[], plan:null};
+const DEFAULT_SETTINGS = {kind:"settings", bell:16, voice:true, cues:false, beep:true, rate:1, units:"kg", voiceName:"", custom:[], presets:[], plan:null};
 const settings = () => ({...DEFAULT_SETTINGS, ...(Store.get("settings") || {})});
 const saveSettings = patch => Store.put("settings", {...settings(), ...patch, kind:"settings"});
 
@@ -478,6 +478,8 @@ const library = () => {
   const vids = s.videos || {};
   return [...BUILTIN.map(([name,cue,video]) => ({name,cue,builtin:true,video:vids[name] ?? video ?? ""})), ...s.custom.map(c => ({...c, builtin:false, video:vids[c.name] ?? c.video ?? ""}))];
 };
+const bellOf = it => it && it.ex !== REST && +it.kg ? (+settings().bell || 16) : 0;
+const bellWords = () => { const b = +settings().bell || 16; return settings().units === "lb" ? Math.round(b*2.20462) + " pound" : b + " kilo"; };
 const repsOf = it => (+it.reps || 0) * (it.side ? 2 : 1);
 const videoFor = name => (library().find(l => l.name === name) || {}).video || "";
 const cueFor = name => (library().find(l => l.name === name) || {}).cue || "";
@@ -489,7 +491,7 @@ const fmtW = kg => toUnit(kg).toFixed(1);
 
 /* ---------- Plan builder ---------- */
 let plan = null;
-const clonePlan = p => JSON.parse(JSON.stringify({type:p.type || "emom", rounds:p.rounds ?? 5, interval:p.interval || 60, rest:p.rest ?? 90, cap:p.cap || 15, items:p.items, from:p.id || p.from || ""}));
+const clonePlan = p => JSON.parse(JSON.stringify({name:p.name || "", type:p.type || "emom", rounds:p.rounds ?? 5, interval:p.interval || 60, rest:p.rest ?? 90, cap:p.cap || 15, items:p.items, from:p.id || p.from || ""}));
 const TYPE_HELP = {
   emom:"Every minute on the minute: the timer starts each exercise on the minute and you rest for whatever's left.",
   amrap:"As many rounds as possible: work through the list at your own pace until the time runs out. Tap Next after each exercise.",
@@ -498,22 +500,45 @@ const TYPE_HELP = {
 function loadPlan(){
   const s = settings();
   plan = s.plan ? clonePlan(s.plan) : clonePlan(PRESETS[0]);
+  if (plan.from !== "new" && !allWorkouts().some(w => w.id === plan.from)) plan = clonePlan(PRESETS[0]);
   if (!s.mig16 && s.plan) { // one bell: 16 kg for everything
     plan.items.forEach(it => { if (it.kg) it.kg = 16; if (plan.from === "p-flow" && it.ex === "Row") it.ex = "Two-arm row"; });
     saveSettings({plan, mig16:true});
   }
 }
 let planSaveT = null;
-function persistPlan(){ clearTimeout(planSaveT); planSaveT = setTimeout(() => saveSettings({plan}), 800); }
+function persistPlan(){
+  clearTimeout(planSaveT);
+  planSaveT = setTimeout(() => {
+    const s = settings(), mine = s.presets.some(p => p.id === plan.from);
+    saveSettings(mine ? {plan, presets:s.presets.map(p => p.id === plan.from ? {...clonePlan(plan), id:p.id, name:plan.name || p.name} : p)} : {plan});
+  }, 600);
+  renderPresetSelect();
+}
 
+const TYPE_LABEL = {emom:"EMOM", amrap:"AMRAP", sets:"Sets"};
+const allWorkouts = () => [...PRESETS, ...settings().presets];
+function workoutMeta(w){
+  const items = (w.items || []).filter(i => i.ex !== REST), n = items.length;
+  const type = w.type || "emom";
+  if (type === "emom") return `${w.rounds} round${w.rounds===1?"":"s"} · ${Math.round((w.items||[]).length * w.rounds * (w.interval||60) / 60)} min · ${n} exercise${n===1?"":"s"}`;
+  if (type === "amrap") return `${w.cap || 15} min · ${n} exercise${n===1?"":"s"}`;
+  return `${w.rounds ? w.rounds + " rounds" : "Until you finish"} · ${mmss(w.rest ?? 90)} rest · ${n} exercise${n===1?"":"s"}`;
+}
 function renderPresetSelect(){
-  const s = settings(), sel = $("#preset");
-  const mine = s.presets.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
-  sel.innerHTML = `<option value="">Current plan</option>` +
-    (mine ? `<optgroup label="My workouts">${mine}</optgroup>` : "") +
-    `<optgroup label="Ready-made">${PRESETS.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</optgroup>`;
-  sel.value = "";
-  $("#del-preset").hidden = !s.presets.some(p => p.id === plan.from);
+  const ws = allWorkouts();
+  const cur = plan.from === "new" ? {...plan, name: plan.name || "New workout", id:"new"} : null;
+  const list = cur ? [...ws, cur] : ws;
+  $("#wlist").innerHTML = list.map(w => {
+    const sel = w.id === plan.from, src = sel ? plan : w;
+    return `<button type="button" class="wcard" data-w="${esc(w.id)}" aria-pressed="${sel}">
+      <span class="wt">${TYPE_LABEL[src.type || "emom"]}</span>
+      <span class="wb"><span class="wn">${esc(sel && plan.name ? plan.name : w.name)}</span><span class="wm">${esc(workoutMeta(src))}</span></span></button>`;
+  }).join("") + `<button type="button" class="wcard new" id="w-new">+ New workout</button>`;
+  const mine = settings().presets.some(p => p.id === plan.from);
+  $("#del-preset").hidden = !mine;
+  $("#edit-note").textContent = mine ? "Changes save to this workout automatically." : plan.from === "new" ? "Tap “Save as a new workout” to keep it in your list." : "Changes apply to this session. Save as a new workout to keep them.";
+  if (document.activeElement !== $("#w-name")) $("#w-name").value = plan.name || (allWorkouts().find(w => w.id === plan.from) || {}).name || "";
 }
 function renderPlan(){
   const lib = library();
@@ -521,13 +546,13 @@ function renderPlan(){
     ...lib.map(l => `<option${l.name===sel?" selected":""}>${esc(l.name)}</option>`)].join("") +
     (sel !== REST && !lib.some(l => l.name === sel) ? `<option selected>${esc(sel)}</option>` : "");
   const unit = settings().units;
-  const bellOpts = kg => `<option value="0"${!kg?" selected":""}>Body</option>` + BELLS.map(b => `<option value="${b}"${b===kg?" selected":""}>${unit==="lb" ? Math.round(b*2.20462)+"lb" : b+"kg"}</option>`).join("");
+  const bellOpts = kg => `<option value="1"${kg?" selected":""}>Bell</option><option value="0"${!kg?" selected":""}>Body</option>`;
   $("#plan").innerHTML =
     plan.items.map((it,i) => `<div class="prow" data-i="${i}">
       <span class="n">${i+1}</span>
       <select data-f="ex" aria-label="Exercise ${i+1}">${opts(it.ex)}</select>
       <span class="repwrap"><input data-f="reps" type="number" inputmode="numeric" min="0" max="200" value="${it.ex===REST?"":it.reps}" ${it.ex===REST?"disabled":""} aria-label="Reps"><select data-f="side" aria-label="Count" style="width:auto;padding:6px 4px;min-height:40px;font-size:14px" ${it.ex===REST?"disabled":""}><option value="0"${it.side?"":" selected"}>reps</option><option value="1"${it.side?" selected":""}>each side</option></select></span>
-      <select data-f="kg" aria-label="Bell weight" ${it.ex===REST?"disabled":""}>${bellOpts(it.kg)}</select>
+      <select data-f="kg" aria-label="Kettlebell or bodyweight" ${it.ex===REST?"disabled":""}>${bellOpts(it.kg)}</select>
       <button class="icon-btn" data-del="${i}" aria-label="Remove">×</button>
     </div>`).join("");
   $("#rounds").value = plan.rounds || 1;
@@ -544,10 +569,11 @@ function renderPlanSum(){
   if (plan.type !== "emom") return renderFlowSum();
   const n = plan.items.length * plan.rounds, secs = n * plan.interval;
   const reps = plan.items.reduce((a,it) => a + (it.ex===REST?0:repsOf(it)), 0) * plan.rounds;
-  const tonnage = plan.items.reduce((a,it) => a + (it.ex===REST?0:repsOf(it)*(+it.kg||0)), 0) * plan.rounds;
+  const tonnage = plan.items.reduce((a,it) => a + (it.ex===REST?0:repsOf(it)*bellOf(it)), 0) * plan.rounds;
   $("#plan-sum").innerHTML = `
     <div class="stat"><span class="label">Time</span><b>${mmss(secs)}</b></div>
     <div class="stat"><span class="label">Intervals</span><b>${n}</b></div>
+    <div class="stat"><span class="label">Bell</span><b>${fmtBell(+settings().bell || 16)}</b></div>
     <div class="stat"><span class="label">Total reps</span><b>${reps}</b></div>
     <div class="stat"><span class="label">Moved</span><b>${Math.round(toUnit(tonnage)).toLocaleString()}<small style="font-size:16px"> ${settings().units}</small></b></div>`;
   $("#start").disabled = n === 0;
@@ -555,12 +581,13 @@ function renderPlanSum(){
 function renderFlowSum(){
   const work = plan.items.filter(i => i.ex !== REST);
   const reps = work.reduce((a,it) => a + repsOf(it), 0);
-  const ton = work.reduce((a,it) => a + repsOf(it)*(+it.kg||0), 0);
+  const ton = work.reduce((a,it) => a + repsOf(it)*bellOf(it), 0);
   const u = settings().units;
   const first = plan.type === "amrap"
     ? `<div class="stat"><span class="label">Time</span><b>${plan.cap}:00</b></div>`
     : `<div class="stat"><span class="label">Rounds</span><b>${plan.rounds ? plan.rounds : "Open"}</b></div><div class="stat"><span class="label">Rest</span><b>${mmss(plan.rest)}</b></div>`;
   $("#plan-sum").innerHTML = first + `
+    <div class="stat"><span class="label">Bell</span><b>${fmtBell(+settings().bell || 16)}</b></div>
     <div class="stat"><span class="label">Exercises</span><b>${work.length}</b></div>
     <div class="stat"><span class="label">Reps / round</span><b>${reps}</b></div>
     <div class="stat"><span class="label">Moved / round</span><b>${Math.round(toUnit(ton)).toLocaleString()}<small style="font-size:16px"> ${u}</small></b></div>`;
@@ -575,7 +602,7 @@ $("#plan").addEventListener("change", e => {
   const it = plan.items[+row.dataset.i], f = e.target.dataset.f;
   if (f === "ex") { it.ex = e.target.value; if (it.ex === REST) { it.reps = 0; it.kg = 0; } else if (!it.reps) it.reps = 10; renderPlan(); }
   else if (f === "reps") it.reps = Math.max(0, +e.target.value || 0);
-  else if (f === "kg") it.kg = +e.target.value;
+  else if (f === "kg") it.kg = e.target.value === "1" ? 16 : 0;
   else if (f === "side") it.side = e.target.value === "1";
   renderPlanSum(); persistPlan();
 });
@@ -585,23 +612,32 @@ $("#add-row").onclick = () => { const last = [...plan.items].reverse().find(i =>
 $("#add-rest").onclick = () => { plan.items.push({ex:REST, reps:0, kg:0}); renderPlan(); persistPlan(); };
 $("#rounds").oninput = e => { plan.rounds = Math.min(60, Math.max(1, +e.target.value || 1)); renderPlanSum(); persistPlan(); };
 $("#interval").onchange = e => { plan.interval = +e.target.value; renderPlanSum(); persistPlan(); };
-$("#preset").onchange = e => {
-  const id = e.target.value; if (!id) return;
-  const p = settings().presets.find(x => x.id === id) || PRESETS.find(x => x.id === id);
-  if (p) { plan = clonePlan(p); plan.from = p.id; renderPlan(); persistPlan(); renderPresetSelect(); toast("Loaded " + p.name); }
+$("#wlist").onclick = e => {
+  if (e.target.closest("#w-new")) {
+    plan = {name:"", type:"emom", rounds:2, interval:60, rest:90, cap:15, items:[{ex:"Two-hand swing", reps:10, kg:16}], from:"new"};
+    renderPlan(); persistPlan(); setEditor(true); return;
+  }
+  const c = e.target.closest("[data-w]"); if (!c || c.dataset.w === plan.from) return;
+  const w = allWorkouts().find(x => x.id === c.dataset.w); if (!w) return;
+  plan = clonePlan(w); plan.from = w.id; renderPlan(); persistPlan(); setEditor(false);
 };
-$("#save-preset").onclick = () => { $("#preset-name-row").hidden = false; $("#preset-name").focus(); };
-$("#preset-name-ok").onclick = () => {
-  const name = $("#preset-name").value.trim(); if (!name) return;
+function setEditor(open){ $("#editor").hidden = !open; $("#edit-toggle").setAttribute("aria-expanded", String(open)); $("#edit-toggle").textContent = open ? "Done editing" : "Edit this workout"; }
+$("#edit-toggle").onclick = () => setEditor($("#editor").hidden);
+$("#w-name").oninput = e => { plan.name = e.target.value; persistPlan(); };
+$("#save-preset").onclick = () => {
   const s = settings(), id = "my-" + Date.now();
-  plan.from = id;
-  saveSettings({presets:[...s.presets, {id, name, ...clonePlan(plan)}], plan});
-  $("#preset-name").value = ""; $("#preset-name-row").hidden = true; toast("Saved " + name);
+  let name = ($("#w-name").value || "").trim();
+  const base = allWorkouts().find(w => w.id === plan.from);
+  if (!name || (base && name === base.name)) name = (name || "My workout") + " (mine)";
+  plan.from = id; plan.name = name;
+  saveSettings({presets:[...s.presets, {...clonePlan(plan), id, name}], plan});
+  toast("Saved " + name);
 };
-let delArm = false;
+let delArm = false, delId = "";
 $("#del-preset").onclick = () => {
-  if (!delArm) { delArm = true; $("#del-preset").textContent = "Tap again to delete"; setTimeout(() => { delArm = false; $("#del-preset").textContent = "Delete this saved workout"; }, 3000); return; }
-  const s = settings(); saveSettings({presets: s.presets.filter(p => p.id !== plan.from)}); plan.from = ""; delArm = false; $("#del-preset").textContent = "Delete this saved workout"; toast("Deleted");
+  if (!delArm) { delId = plan.from; delArm = true; $("#del-preset").textContent = "Tap again to delete"; setTimeout(() => { delArm = false; $("#del-preset").textContent = "Delete this workout"; }, 3000); return; }
+  const s = settings(); plan = clonePlan(PRESETS[0]); plan.from = PRESETS[0].id;
+  saveSettings({presets: s.presets.filter(p => p.id !== settings().plan?.from && p.id !== delId), plan}); delArm = false; $("#del-preset").textContent = "Delete this workout"; setEditor(false); renderPlan(); toast("Deleted");
 };
 
 /* ---------- Voice + beeps ---------- */
@@ -657,10 +693,10 @@ const PREP = 10;
 let run = null, tick = null, wakeLock = null;
 const spokenItem = (it) => {
   if (it.ex === REST) return "Rest";
-  const w = it.kg ? `, ${settings().units==="lb" ? Math.round(it.kg*2.20462)+" pounds" : it.kg+" kilos"}` : "";
+  const w = "";
   return `${it.reps} ${it.side ? "each side" : "reps"}, ${it.ex.replace(/\((left|right)\)/i, "$1 side")}${w}`;
 };
-const metaItem = it => it.ex === REST ? "Breathe, shake it out" : `${it.reps} ${it.side ? "each side" : "reps"}` + (it.kg ? ` · <span class="bell" style="background:${BELL_COL[it.kg]||"var(--muted)"}"></span>${settings().units==="lb"?Math.round(it.kg*2.20462)+" lb":it.kg+" kg"}` : " · bodyweight");
+const metaItem = it => it.ex === REST ? "Breathe, shake it out" : `${it.reps} ${it.side ? "each side" : "reps"}` + (bellOf(it) ? ` · <span class="bell" style="background:${BELL_COL[bellOf(it)]||"var(--muted)"}"></span>${fmtBell(bellOf(it))}` : " · bodyweight");
 
 let cueKey = "";
 function setCue(it){
@@ -684,7 +720,7 @@ function startWorkout(){
   run = {type:"emom", seq, interval:plan.interval, start:performance.now(), paused:0, pausedAt:null, fired:new Set(), lastIdx:-2, started:new Date(), skipped:0};
   $("#timer").hidden = false; document.body.style.overflow = "hidden";
   $("#t-pause").textContent = "Pause";
-  say(`Get ready. First up, ${spokenItem(seq[0])}.`);
+  say(`Get ready.${seq.some(bellOf) ? ` ${bellWords()} bell.` : ""} First up, ${spokenItem(seq[0])}.`);
   tick = setInterval(update, 100); update();
 }
 function elapsed(){ if (!run) return 0; const now = run.pausedAt ?? performance.now(); return (now - run.start - run.paused) / 1000; }
@@ -731,14 +767,14 @@ function update(){
   $("#t-next").textContent = nx ? nx.ex : "Finish";
   $("#t-nextmeta").innerHTML = nx ? metaItem(nx) : "";
   $("#t-arc").style.strokeDashoffset = String(282.74 * (1 - within)); // fills clockwise from 12 like a clock hand
-  $("#t-arc").style.stroke = cur.ex === REST ? "var(--muted)" : (BELL_COL[cur.kg] && cur.kg !== 40 && cur.kg !== 44 ? BELL_COL[cur.kg] : "var(--accent)");
+  $("#t-arc").style.stroke = cur.ex === REST ? "var(--muted)" : (BELL_COL[bellOf(cur)] && ![40,44].includes(bellOf(cur)) ? BELL_COL[bellOf(cur)] : "var(--accent)");
   $("#timer").classList.toggle("warn", left <= 10 && left > 3);
   $("#timer").classList.toggle("final", left <= 3);
 }
 $("#start").onclick = startWorkout;
 $("#t-pause").onclick = () => {
   if (!run) return;
-  if (run.type === "sets" && run.phase === "work") { for (const it of run.items) { run.reps += repsOf(it); run.ton += repsOf(it) * (+it.kg||0); } return flowRoundDone(); }
+  if (run.type === "sets" && run.phase === "work") { for (const it of run.items) { run.reps += repsOf(it); run.ton += repsOf(it) * bellOf(it); } return flowRoundDone(); }
   if (run.type !== "emom" && run.phase === "work") return flowNext();
   if (run.pausedAt) { run.paused += performance.now() - run.pausedAt; run.pausedAt = null; $("#t-pause").textContent = "Pause"; say("Back to it."); }
   else { run.pausedAt = performance.now(); $("#t-pause").textContent = "Resume"; say("Paused."); }
@@ -765,7 +801,7 @@ function finish(complete){
   const doneN = complete ? run.seq.length : Math.max(0, Math.floor((e - PREP) / I));
   const doneSeq = run.seq.slice(0, doneN);
   const reps = doneSeq.reduce((a,it) => a + (it.ex===REST?0:repsOf(it)), 0);
-  const ton = doneSeq.reduce((a,it) => a + (it.ex===REST?0:repsOf(it)*(+it.kg||0)), 0);
+  const ton = doneSeq.reduce((a,it) => a + (it.ex===REST?0:repsOf(it)*bellOf(it)), 0);
   const names = [...new Set(plan.items.filter(i => i.ex !== REST).map(i => i.ex.replace(/ \((left|right)\)/i,"")))];
   lastResult = {kind:"workout", date:dkey(run.started), ts:run.started.getTime(), source:"timer",
     title:`EMOM ${Math.round(run.seq.length*I/60)} min`, minutes:Math.round(doneN*I/60*10)/10, intervals:doneN, of:run.seq.length,
@@ -803,7 +839,7 @@ function startFlow(){
     phase:"prep", phaseAt:0, round:1, i:0, roundsDone:0, reps:0, ton:0, workStart:PREP};
   $("#timer").hidden = false; document.body.style.overflow = "hidden";
   $("#t-list").hidden = false;
-  say(`Get ready. ${plan.type === "amrap" ? `As many rounds as possible in ${plan.cap} minutes.` : ""} First up, ${spokenItem(items[0])}.`);
+  say(`Get ready.${items.some(bellOf) ? ` ${bellWords()} bell.` : ""} ${plan.type === "amrap" ? `As many rounds as possible in ${plan.cap} minutes.` : ""} First up, ${spokenItem(items[0])}.`);
   tick = setInterval(update, 100); update();
 }
 function flowAnnounce(prefix){
@@ -822,7 +858,7 @@ function flowStartRound(e){
 }
 function flowNext(){
   const it = run.items[run.i];
-  run.reps += repsOf(it); run.ton += repsOf(it) * (+it.kg || 0);
+  run.reps += repsOf(it); run.ton += repsOf(it) * bellOf(it);
   if (run.i + 1 < run.items.length) { run.i++; beep(880, .1); flowAnnounce(""); update(); return; }
   flowRoundDone();
 }
@@ -843,7 +879,7 @@ function flowSkip(){
   if (run.phase === "prep") { run.start -= (PREP - e) * 1000; update(); return; }
   if (run.phase === "rest") { flowStartRound(e); update(); return; }
   // In a round: jump to "round done"
-  for (let k = run.i; k < run.items.length; k++) { const it = run.items[k]; run.reps += repsOf(it); run.ton += repsOf(it) * (+it.kg||0); }
+  for (let k = run.i; k < run.items.length; k++) { const it = run.items[k]; run.reps += repsOf(it); run.ton += repsOf(it) * bellOf(it); }
   flowRoundDone();
 }
 function updateFlow(){
@@ -899,14 +935,15 @@ function updateFlow(){
   if (listMode) {
     $("#t-round").textContent = rLabel;
     $("#t-total").textContent = mmss(Math.max(0, e - run.phaseAt)) + " this round";
-    $("#t-list").innerHTML = run.items.map(x => `<li><b>${x.reps}</b><span class="nm">${esc(x.ex)}${x.side ? ' <small style="font:500 13px/1 var(--body);color:var(--muted);text-transform:none">each side</small>' : ""}</span><span class="kg">${x.kg ? `<span class="bell" style="background:${BELL_COL[x.kg]||"var(--muted)"}"></span>${fmtBell(x.kg)}` : "body"}</span></li>`).join("");
+    $("#t-list").innerHTML = run.items.map(x => `<li><b>${x.reps}</b><span class="nm">${esc(x.ex)}${x.side ? ' <small style="font:500 13px/1 var(--body);color:var(--muted);text-transform:none">each side</small>' : ""}</span><span class="kg">${bellOf(x) ? "bell" : "body"}</span></li>`).join("");
     $("#t-pause").textContent = "Done";
     if (!endArm) $("#t-end").textContent = !run.rounds ? "Finish" : "End";
     return;
   }
   $("#t-list").innerHTML = run.items.map((x, k) => `<li class="${run.phase === "work" && k < run.i ? "done" : run.phase === "work" && k === run.i ? "now" : ""}">${esc(shortItem(x))}</li>`).join("");
   $("#t-arc").style.strokeDashoffset = String(282.74 * (1 - Math.max(0, Math.min(1, within))));
-  const col = run.phase === "rest" ? "var(--muted)" : (BELL_COL[(run.phase==="prep"?run.items[0]:it).kg] && ![40,44].includes(it.kg) ? BELL_COL[(run.phase==="prep"?run.items[0]:it).kg] : "var(--accent)");
+  const colIt = run.phase === "prep" ? run.items[0] : it, cb = bellOf(colIt);
+  const col = run.phase === "rest" ? "var(--muted)" : (BELL_COL[cb] && ![40,44].includes(cb) ? BELL_COL[cb] : "var(--accent)");
   $("#t-arc").style.stroke = col;
   const warnLeft = run.phase === "work" ? (run.type === "amrap" ? capLeft : 99) : left;
   $("#timer").classList.toggle("warn", warnLeft <= 10 && warnLeft > 3);
@@ -1000,7 +1037,7 @@ function renderDay(){
     else if (it.source === "timer") parts.push(`${it.intervals}/${it.of} intervals`, `${it.reps} reps`, `${Math.round(toUnit(it.tonnage||0)).toLocaleString()} ${settings().units} moved`);
     else parts.push(`${it.minutes} min`);
     if (it.feel) parts.push(`effort ${it.feel}/10`);
-    const plan = it.items ? it.items.filter(i => i.ex!==REST).map(i => `${i.reps}× ${i.ex}${i.kg?` @${fmtBell(i.kg)}`:""}`).join(", ") : "";
+    const plan = it.items ? it.items.filter(i => i.ex!==REST).map(i => `${i.reps}${i.side?" each side":"×"} ${i.ex}`).join(", ") : "";
     return `<div class="entry"><div class="body"><h3>${esc(it.title)} <span class="muted" style="font-weight:400">· ${time}</span></h3>
       <p>${esc(parts.join(" · "))}</p>${plan?`<p>${esc(plan)}</p>`:""}${it.notes?`<p>“${esc(it.notes)}”</p>`:""}</div>${delBtn(it.id)}</div>`;
   }).join("");
@@ -1101,7 +1138,7 @@ $("#lib-form").onsubmit = e => {
 function renderSettings(){
   const s = settings();
   $("#s-voice").checked = s.voice; $("#s-cues").checked = s.cues; $("#s-beep").checked = s.beep;
-  $("#s-rate").value = String(s.rate); $("#s-units").value = s.units;
+  $("#s-rate").value = String(s.rate); $("#s-units").value = s.units; $("#s-bell").value = String(+s.bell || 16);
   if ($("#s-voicename").value !== s.voiceName) $("#s-voicename").value = s.voiceName;
 }
 $("#s-voice").onchange = e => saveSettings({voice:e.target.checked});
@@ -1109,6 +1146,7 @@ $("#s-cues").onchange = e => saveSettings({cues:e.target.checked});
 $("#s-beep").onchange = e => saveSettings({beep:e.target.checked});
 $("#s-rate").onchange = e => saveSettings({rate:+e.target.value});
 $("#s-units").onchange = e => saveSettings({units:e.target.value});
+$("#s-bell").onchange = e => { saveSettings({bell:+e.target.value}); toast(`Every kettlebell exercise now uses ${e.target.value} kg`); };
 $("#s-voicename").onchange = e => saveSettings({voiceName:e.target.value});
 $("#s-test").onclick = () => { unlockAudio(); const was = settings().voice; if (!was) { toast("Turn on “Talk to me” first"); return; } beep(1046,.3); say("Minute 3 of 20. 15 two-hand swings, 24 kilos."); };
 
